@@ -1,7 +1,13 @@
 [package]
 name = "confindent"
 version = "0.1.0"
+description = "⚙️ A configuration format based on indentation"
 authors = ["genuinebyte <bja@genuinebyte.com>"]
-edition = "2019"
+repository = "https://github.com/genuinebyte/confindent"
+readme = "README.md"
+keywords = ["configuration", "indentation"]
+categories = ["Configuration"]
+license = "ISC"
+edition = "2018"
 
 [dependencies]
