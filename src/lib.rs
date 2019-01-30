@@ -73,6 +73,17 @@ impl ConfParent for Confindent {
     fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
         self.sections.get(&key.into())
     }
+
+    fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
+        self.sections.get_mut(&key.into())
+    }
+
+    fn create_child<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self {
+        let sec = ConfSection::new(ConfItem::parse(&value.into()), 1, HashMap::new());
+        self.sections.insert(key.into(), sec);
+
+        self
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -89,6 +100,18 @@ impl ConfSection {
             indent_level,
             children,
         }
+    }
+
+    ///Set the value of this section
+    pub fn set_value<T: Into<String>>(&mut self, value: T) -> &mut Self {
+        self.value = ConfItem::parse(&value.into());
+
+        self
+    }
+
+    ///Shorthand for [`set_value()`](#method.set_value)
+    pub fn set<T: Into<String>>(&mut self, value: T) -> &mut Self {
+        self.set_value(value)
     }
 
     ///Get the scalar value of this section
@@ -137,6 +160,20 @@ impl ConfParent for ConfSection {
     fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
         self.children.get(&key.into())
     }
+
+    fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
+        self.children.get_mut(&key.into())
+    }
+
+    fn create_child<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self {
+        let sec = ConfSection::new(
+            ConfItem::parse(&value.into()),
+            self.indent_level + 1,
+            HashMap::new(),
+        );
+        self.children.insert(key.into(), sec);
+        self
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -159,7 +196,7 @@ impl ConfItem {
 }
 
 pub trait ConfParent {
-    ///Get a child of the configuration section
+    ///Get a reference to a child section
     fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection>;
 
     ///Shorthand for [`get_child()`](#method.get_child)
@@ -167,7 +204,23 @@ pub trait ConfParent {
         self.get_child(key)
     }
 
-    //Get the value of a child
+    ///Get a mutable reference to a child section
+    fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection>;
+
+    ///Shorthand for [`get_child_mut()`](#method.get_child_mut)
+    fn child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
+        self.get_child_mut(key)
+    }
+
+    ///Create a child
+    fn create_child<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self;
+
+    ///Shorthand for [`create_child()`](#method.create_child)
+    fn create<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self {
+        self.create_child(key, value)
+    }
+
+    ///Get the value of a child
     fn get_child_value<T: Into<String>, Y: FromStr>(&self, key: T) -> Option<Y> {
         match self.get_child(key) {
             None => None,
@@ -175,7 +228,7 @@ pub trait ConfParent {
         }
     }
 
-    //Shorthand for [`get_child_value()`](#mathod.get_child_value)
+    ///Shorthand for [`get_child_value()`](#mathod.get_child_value)
     fn child_value<T: Into<String>, Y: FromStr>(&self, key: T) -> Option<Y> {
         self.get_child_value(key)
     }
