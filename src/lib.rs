@@ -1,29 +1,30 @@
 use std::collections::HashMap;
+use std::fs;
+use std::io;
+use std::path::Path;
 use std::str::FromStr;
 use std::string::ParseError;
 
 type ConfHash = HashMap<String, ConfSection>;
 
+#[derive(Debug, PartialEq)]
 pub struct Confindent {
     sections: ConfHash,
 }
 
 impl Confindent {
+    /// Create an empty configuration
     pub fn new() -> Self {
         Confindent {
             sections: HashMap::new(),
         }
     }
 
-    pub fn get(&self, key: &str) -> Option<&ConfSection> {
-        self.sections.get(key)
+    ///Creates a new configuration from a file
+    pub fn from_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let string = fs::read_to_string(path)?;
+        Ok(Confindent::from_str(&string).expect("This should not happen"))
     }
-
-    //TODO: implement
-    pub fn from_file() {}
-
-    //TOOD: implement
-    pub fn from_buffer() {}
 
     fn add_section(&mut self, key: String, cs: ConfSection) {
         if self.sections.is_empty() || cs.indent_level == 0 {
@@ -68,6 +69,12 @@ impl FromStr for Confindent {
     }
 }
 
+impl ConfParent for Confindent {
+    fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
+        self.sections.get(&key.into())
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct ConfSection {
     value: ConfItem,
@@ -76,7 +83,7 @@ pub struct ConfSection {
 }
 
 impl ConfSection {
-    pub fn new(value: ConfItem, indent_level: u8, children: ConfHash) -> Self {
+    fn new(value: ConfItem, indent_level: u8, children: ConfHash) -> Self {
         ConfSection {
             value,
             indent_level,
@@ -84,12 +91,14 @@ impl ConfSection {
         }
     }
 
-    pub fn get(&self, key: &str) -> Option<&ConfSection> {
-        self.children.get(key)
+    ///Get the scalar value of this section
+    pub fn get_value<T: FromStr>(&self) -> Option<T> {
+        self.value.get()
     }
 
-    pub fn value(&self) -> &ConfItem {
-        &self.value
+    ///Shorthand for [`get_value()`](#method.get_value)
+    pub fn get<T: FromStr>(&self) -> Option<T> {
+        self.get_value()
     }
 
     fn parse(s: &str) -> Option<(String, Self)> {
@@ -124,8 +133,14 @@ impl ConfSection {
     }
 }
 
+impl ConfParent for ConfSection {
+    fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
+        self.children.get(&key.into())
+    }
+}
+
 #[derive(Debug, PartialEq)]
-pub enum ConfItem {
+enum ConfItem {
     Empty,
     Text(String),
 }
@@ -135,11 +150,34 @@ impl ConfItem {
         ConfItem::Text(s.to_owned())
     }
 
-    pub fn value<T: FromStr>(&self) -> Option<T> {
+    pub fn get<T: FromStr>(&self) -> Option<T> {
         match *self {
             ConfItem::Empty => None,
             ConfItem::Text(ref s) => s.parse().ok(),
         }
+    }
+}
+
+pub trait ConfParent {
+    ///Get a child of the configuration section
+    fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection>;
+
+    ///Shorthand for [`get_child()`](#method.get_child)
+    fn child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
+        self.get_child(key)
+    }
+
+    //Get the value of a child
+    fn get_child_value<T: Into<String>, Y: FromStr>(&self, key: T) -> Option<Y> {
+        match self.get_child(key) {
+            None => None,
+            Some(child) => child.get(),
+        }
+    }
+
+    //Shorthand for [`get_child_value()`](#mathod.get_child_value)
+    fn child_value<T: Into<String>, Y: FromStr>(&self, key: T) -> Option<Y> {
+        self.get_child_value(key)
     }
 }
 
@@ -223,29 +261,39 @@ mod tests {
     }
 
     #[test]
-    fn parse_config_early_api() {
-        let config_string = "Host example.com\n\tUsername user\n\tPassword pass\nIdle 600";
+    fn parse_config_from_str() {
+        let config_string = "Host example.com\n\tUsername user\n\tPassword pass\n\nIdle 600";
         let config = Confindent::from_str(config_string).expect("Failed to parse config");
+        verify_full_parse(&config)
+    }
 
-        let host_section = config.get("Host").expect("No Host in config");
-        let hostname = host_section.value();
-        let username = match host_section.get("Username") {
-            Some(section) => section.value(),
+    #[test]
+    fn parse_config_from_file() {
+        let config =
+            Confindent::from_file("examples/example.conf").expect("Failed to parse config");
+        verify_full_parse(&config)
+    }
+
+    fn verify_full_parse(config: &Confindent) {
+        let host_section = config.child("Host").expect("No Host in config");
+        let hostname = host_section.get();
+        let username = match host_section.child("Username") {
+            Some(section) => section.get(),
             None => panic!(),
         };
-        let password = match host_section.get("Password") {
-            Some(section) => section.value(),
+        let password = match host_section.child("Password") {
+            Some(section) => section.get(),
             None => panic!(),
         };
 
-        let idle = match config.get("Idle") {
-            Some(section) => section.value(),
+        let idle = match config.child("Idle") {
+            Some(section) => section.get(),
             None => panic!(),
         };
 
-        assert_eq!(hostname.value(), Some("example.com".to_string()));
-        assert_eq!(username.value(), Some("user".to_string()));
-        assert_eq!(password.value(), Some("pass".to_string()));
-        assert_eq!(idle.value(), Some("600".to_string()));
+        assert_eq!(hostname, Some("example.com".to_string()));
+        assert_eq!(username, Some("user".to_string()));
+        assert_eq!(password, Some("pass".to_string()));
+        assert_eq!(idle, Some("600".to_string()));
     }
 }
