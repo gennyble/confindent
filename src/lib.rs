@@ -109,9 +109,12 @@ impl ConfSection {
         let mut workable: &str = &s;
 
         let mut indent_level = 0;
-        while workable.starts_with('\t') {
+        while workable.starts_with('\t') || workable.starts_with("  ") {
             indent_level += 1;
-            workable = match workable.get(1..) {
+
+            let offset = if workable.starts_with('\t') { 1 } else { 2 };
+
+            workable = match workable.get(offset..) {
                 Some(slice) => slice,
                 None => return None,
             };
