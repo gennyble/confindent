@@ -10,10 +10,7 @@
 the format of the ssh client configuration commonly found on Linux machines
 at `~/.ssh/config`.
 
-Currently confindent is a read only library, but writing configuration is close to
-being finished.
-
-#### Read configuration from file
+#### Read configuration from a file
 ```rust
 extern crate confindent;
 use confindent::{ConfParent, Confindent};
@@ -32,5 +29,33 @@ fn main() {
     let password: String = host.child_value("Password").unwrap();
 
     println!("ssh {}@{} -p {}", username, hostname, password);
+
+    //Result:
+    //ssh user@example.com -p pass
+}
+```
+
+#### Write cconfiguration to a file
+```rust
+extern crate confindent;
+use confindent::{ConfParent, Confindent};
+
+fn main() {
+    let mut conf = Confindent::new();
+    conf.create("Host", "example.net").create("Idle", "3600");
+    conf.child_mut("Host")
+        .unwrap()
+        .create("Username", "gerald")
+        .create("Password", "qwerty");
+    
+    conf.to_file("example.conf").unwrap();
+    /*
+    Yields the file `example.conf` with contents:
+    
+    Host example.net
+    	Password qwerty
+    	Username gerald
+    Idle 3600
+    */
 }
 ```
