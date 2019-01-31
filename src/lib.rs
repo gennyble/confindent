@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::fs;
+use std::fs::File;
 use std::io;
+use std::io::Write;
 use std::path::Path;
 use std::str::FromStr;
 use std::string::ParseError;
@@ -24,6 +27,13 @@ impl Confindent {
     pub fn from_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let string = fs::read_to_string(path)?;
         Ok(Confindent::from_str(&string).expect("This should not happen"))
+    }
+
+    pub fn to_file<P: AsRef<Path>>(self, path: P) -> io::Result<()> {
+        let mut file = File::create(path)?;
+        let conf: String = self.into();
+
+        file.write_all(&conf.into_bytes())
     }
 
     fn add_section(&mut self, key: String, cs: ConfSection) {
@@ -79,10 +89,22 @@ impl ConfParent for Confindent {
     }
 
     fn create_child<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self {
-        let sec = ConfSection::new(ConfItem::parse(&value.into()), 1, HashMap::new());
+        let sec = ConfSection::new(ConfItem::parse(&value.into()), 0, HashMap::new());
         self.sections.insert(key.into(), sec);
 
         self
+    }
+}
+
+impl Into<String> for Confindent {
+    fn into(self) -> String {
+        let mut ret = String::new();
+
+        for (key, child) in self.sections {
+            ret.push_str(&format!("\n{}", child.into_string(key)));
+        }
+
+        ret.trim().to_owned()
     }
 }
 
@@ -119,9 +141,32 @@ impl ConfSection {
         self.value.get()
     }
 
+    ///Get the vector value of this section
+    pub fn get_vec<T: FromStr>(&self) -> Option<Vec<T>> {
+        match self.get::<String>() {
+            None => None,
+            Some(x) => x
+                .split(',')
+                .map(|x| x.trim().parse())
+                .collect::<Result<Vec<T>, _>>()
+                .ok(),
+        }
+    }
+
     ///Shorthand for [`get_value()`](#method.get_value)
     pub fn get<T: FromStr>(&self) -> Option<T> {
         self.get_value()
+    }
+
+    fn into_string(self, key: String) -> String {
+        let mut ret = format!("{} {}", key, self.value);
+
+        for (key, child) in self.children {
+            let child_str = format!("\n\t{}", child.into_string(key).replace('\n', "\n\t"));
+            ret.push_str(&child_str);
+        }
+
+        ret
     }
 
     fn parse(s: &str) -> Option<(String, Self)> {
@@ -234,6 +279,15 @@ pub trait ConfParent {
     }
 }
 
+impl fmt::Display for ConfItem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ConfItem::Empty => write!(f, ""),
+            ConfItem::Text(s) => write!(f, "{}", s),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -268,6 +322,14 @@ mod tests {
         assert_eq!(section.value, ConfItem::Text("Value".to_string()));
         assert_eq!(section.indent_level, 1);
         assert!(section.children.is_empty());
+    }
+
+    #[test]
+    fn get_config_vec() {
+        let test_line = "Vec 1,2,3,4";
+        let (_, section) = ConfSection::parse(test_line).unwrap();
+
+        assert_eq!(section.get_vec::<u8>().unwrap(), vec![1, 2, 3, 4]);
     }
 
     #[test]
