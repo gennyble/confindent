@@ -1,3 +1,15 @@
+///! Confindent is a library for **conf**iguration by **indent**ation.
+///!
+///! This tiny library provides a quick and easy way to read and write configuration.
+///!
+///! Features:
+///! * no dependancies
+///! * parse [from file](struct.Confindent.html#method.from_file) or [from string](struct.Confindent.html#impl-FromStr)
+///! * create conf files with an intuitive [builder api](trait.ConfParent.html#method.child_mut)
+///! * write [to file](struct.Confindent.html#method.to_string) or [to string](struct.Confindent.html#impl-Into)
+///!
+///! ## Examples
+///! TODO
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -10,6 +22,7 @@ use std::string::ParseError;
 
 type ConfHash = HashMap<String, ConfSection>;
 
+/// Structure for Reading/Writing configuration
 #[derive(Debug, PartialEq)]
 pub struct Confindent {
     sections: ConfHash,
@@ -23,7 +36,14 @@ impl Confindent {
         }
     }
 
-    ///Creates a new configuration from a file
+    /// Creates a new configuration from a file
+    ///
+    /// ## Examples
+    /// ```
+    /// use confindent::Confindent;
+    ///
+    /// let conf = Confindent::from_file("./examples/example.conf");
+    /// ```
     pub fn from_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let string = fs::read_to_string(path)?;
         Ok(Confindent::from_str(&string).expect("This should not happen"))
