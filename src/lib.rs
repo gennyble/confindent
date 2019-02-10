@@ -7,9 +7,6 @@
 ///! * parse [from file](struct.Confindent.html#method.from_file) or [from string](struct.Confindent.html#impl-FromStr)
 ///! * create conf files with an intuitive [builder api](trait.ConfParent.html#method.child_mut)
 ///! * write [to file](struct.Confindent.html#method.to_string) or [to string](struct.Confindent.html#impl-Into)
-///!
-///! ## Examples
-///! TODO
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -49,6 +46,21 @@ impl Confindent {
         Ok(Confindent::from_str(&string).expect("This should not happen"))
     }
 
+    /// Writes configurtion to a file
+    ///
+    /// ## Examples
+    /// ```
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let mut conf = Confindent::new();
+    /// conf.create("Section", "Value");
+    /// conf.child_mut("Section")
+    ///     .unwrap()
+    ///     .create("SubSection", "Value")
+    ///     .create("SubSection", "Value");
+    ///
+    /// conf.to_file("example.conf").unwrap();
+    /// ```
     pub fn to_file<P: AsRef<Path>>(self, path: P) -> io::Result<()> {
         let mut file = File::create(path)?;
         let conf: String = self.into();
@@ -144,7 +156,20 @@ impl ConfSection {
         }
     }
 
-    ///Set the value of this section
+    /// Set the value of this section
+    ///
+    /// ## Example
+    /// ```
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let mut conf = Confindent::new();
+    /// conf.create("Section", "Placeholder");
+    ///
+    /// let section = conf.child_mut("Section").unwrap();
+    /// section.set_value("Value");
+    ///
+    /// assert_eq!(section.get::<String>().unwrap(), "Value");
+    /// ```
     pub fn set_value<T: Into<String>>(&mut self, value: T) -> &mut Self {
         self.value = ConfItem::parse(&value.into());
 
@@ -156,12 +181,41 @@ impl ConfSection {
         self.set_value(value)
     }
 
-    ///Get the scalar value of this section
+    /// Get the scalar value of this section
+    ///
+    /// ## Example
+    /// ```
+    /// use std::str::FromStr;
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let conf_str = "Section value";
+    /// let conf = Confindent::from_str(conf_str).unwrap();
+    /// let section = conf.child("Section").unwrap();
+    ///
+    /// assert_eq!(section.get_value::<String>().unwrap(), "value");
+    /// ```
     pub fn get_value<T: FromStr>(&self) -> Option<T> {
         self.value.get()
     }
 
-    ///Get the vector value of this section
+    /// Shorthand for [`get_value()`](#method.get_value)
+    pub fn get<T: FromStr>(&self) -> Option<T> {
+        self.get_value()
+    }
+
+    /// Get the value in this section as a vector
+    ///
+    /// ## Example
+    /// ```
+    /// use std::str::FromStr;
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let conf_str = "Section 1,2,3";
+    /// let conf = Confindent::from_str(conf_str).unwrap();
+    ///
+    /// let section = conf.child("Section").unwrap();
+    /// assert_eq!(section.get_vec(), Some(vec![1, 2, 3]));
+    /// ```
     pub fn get_vec<T: FromStr>(&self) -> Option<Vec<T>> {
         match self.get::<String>() {
             None => None,
@@ -171,11 +225,6 @@ impl ConfSection {
                 .collect::<Result<Vec<T>, _>>()
                 .ok(),
         }
-    }
-
-    ///Shorthand for [`get_value()`](#method.get_value)
-    pub fn get<T: FromStr>(&self) -> Option<T> {
-        self.get_value()
     }
 
     fn into_string(self, key: String) -> String {
@@ -251,11 +300,11 @@ enum ConfItem {
 }
 
 impl ConfItem {
-    pub fn parse(s: &str) -> Self {
+    fn parse(s: &str) -> Self {
         ConfItem::Text(s.to_owned())
     }
 
-    pub fn get<T: FromStr>(&self) -> Option<T> {
+    fn get<T: FromStr>(&self) -> Option<T> {
         match *self {
             ConfItem::Empty => None,
             ConfItem::Text(ref s) => s.parse().ok(),
@@ -263,32 +312,73 @@ impl ConfItem {
     }
 }
 
+/// Methods for configuration sections with children
 pub trait ConfParent {
-    ///Get a reference to a child section
+    /// Get a reference to a child section
+    ///
+    /// ## Example
+    /// ```
+    /// use std::str::FromStr;
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let conf_str = "Section value";
+    /// let conf = Confindent::from_str(conf_str).unwrap();
+    /// let section = conf.get_child("Section").unwrap();
+    /// ```
     fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection>;
 
-    ///Shorthand for [`get_child()`](#method.get_child)
+    /// Shorthand for [`get_child()`](#method.get_child)
     fn child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
         self.get_child(key)
     }
 
-    ///Get a mutable reference to a child section
+    /// Get a mutable reference to a child section
+    ///
+    /// ## Example
+    /// ```
+    /// use std::str::FromStr;
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let conf_str = "Section value";
+    /// let mut conf = Confindent::from_str(conf_str).unwrap();
+    /// let mut section = conf.get_child_mut("Section").unwrap();
+    /// ```
     fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection>;
 
-    ///Shorthand for [`get_child_mut()`](#method.get_child_mut)
+    /// Shorthand for [`get_child_mut()`](#method.get_child_mut)
     fn child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
         self.get_child_mut(key)
     }
 
-    ///Create a child
+    /// Create a child section
+    ///
+    /// ## Example
+    /// ```
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let mut conf = Confindent::new();
+    /// conf.create_child("Key", "Value");
+    /// ```
     fn create_child<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self;
 
-    ///Shorthand for [`create_child()`](#method.create_child)
+    /// Shorthand for [`create_child()`](#method.create_child)
     fn create<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self {
         self.create_child(key, value)
     }
 
-    ///Get the value of a child
+    /// Get the value of a child
+    ///
+    /// ## Example
+    /// ```
+    /// use std::str::FromStr;
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let conf_str = "Section key";
+    /// let conf = Confindent::from_str(conf_str).unwrap();
+    ///
+    /// let value: Option<String> = conf.get_child_value("Section");
+    /// assert_eq!(value.unwrap(), "key");
+    /// ```
     fn get_child_value<T: Into<String>, Y: FromStr>(&self, key: T) -> Option<Y> {
         match self.get_child(key) {
             None => None,
@@ -296,7 +386,7 @@ pub trait ConfParent {
         }
     }
 
-    ///Shorthand for [`get_child_value()`](#mathod.get_child_value)
+    /// Shorthand for [`get_child_value()`](#mathod.get_child_value)
     fn child_value<T: Into<String>, Y: FromStr>(&self, key: T) -> Option<Y> {
         self.get_child_value(key)
     }

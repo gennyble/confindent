@@ -3,3 +3,4 @@
 Cargo.lock
 **/.vscode
 example_write.conf
+example.conf
