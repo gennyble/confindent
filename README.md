@@ -2,12 +2,6 @@
 [![Crates](https://flat.badgen.net/crates/v/confindent)][crate]
 [![Downloads](https://flat.badgen.net/crates/d/confindent)][crate]
 
--------
-
-# *Repository now located on [sr.ht](https://git.sr.ht/~genbyte/confindent)!*
-
--------
-
 [crate]: https://crates.io/crates/confindent
 [sourcehut]: https://git.sr.ht/~genbyte/confindent
 
