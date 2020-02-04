@@ -7,7 +7,6 @@
 ///! * parse [from file](struct.Confindent.html#method.from_file) or [from string](struct.Confindent.html#impl-FromStr)
 ///! * create conf files with an intuitive [builder api](trait.ConfParent.html#method.child_mut)
 ///! * write [to file](struct.Confindent.html#method.to_string) or [to string](struct.Confindent.html#impl-Into)
-use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::fs::File;
@@ -17,19 +16,19 @@ use std::path::Path;
 use std::str::FromStr;
 use std::string::ParseError;
 
-type ConfHash = HashMap<String, ConfSection>;
+type ConfVec = Vec<ConfSection>;
 
 /// Structure for Reading/Writing configuration
 #[derive(Debug, PartialEq)]
 pub struct Confindent {
-    sections: ConfHash,
+    sections: ConfVec,
 }
 
 impl Confindent {
     /// Create an empty configuration
     pub fn new() -> Self {
         Confindent {
-            sections: HashMap::new(),
+            sections: Vec::new(),
         }
     }
 
@@ -68,23 +67,54 @@ impl Confindent {
         file.write_all(&conf.into_bytes())
     }
 
-    fn add_section(&mut self, key: String, cs: ConfSection) {
+    fn add_section(&mut self, cs: ConfSection) {
         if self.sections.is_empty() || cs.indent_level == 0 {
-            self.sections.insert(key, cs);
+            self.sections.push(cs);
             return;
         }
 
-        let mut hashvec: Vec<(&String, &mut ConfSection)> = self.sections.iter_mut().collect();
-        let iter = hashvec.iter_mut().rev();
+        let iter = self.sections.iter_mut().rev();
 
-        for (_, sec) in iter {
-            if (**sec).indent_level == cs.indent_level - 1 {
-                (**sec).children.insert(key, cs);
+        for sec in iter {
+            if (*sec).indent_level == cs.indent_level - 1 {
+                (*sec).children.push(cs);
                 return;
             }
         }
 
-        self.sections.insert(key, cs);
+        self.sections.push(cs);
+    }
+
+    fn get_sections_by_name(&self, key: &str) -> Option<Vec<&ConfSection>> {
+        let mut ret: Vec<&ConfSection> = Vec::new();
+
+        for sec in &self.sections {
+            if sec.key == key {
+                ret.push(sec);
+            }
+        }
+
+        if ret.is_empty() {
+            None
+        } else {
+            Some(ret)
+        }
+    }
+
+    fn get_sections_by_name_mut(&mut self, key: &str) -> Option<Vec<&mut ConfSection>> {
+        let mut ret: Vec<&mut ConfSection> = Vec::new();
+
+        for sec in &mut self.sections {
+            if sec.key == key {
+                ret.push(sec);
+            }
+        }
+
+        if ret.is_empty() {
+            None
+        } else {
+            Some(ret)
+        }
     }
 }
 
@@ -102,7 +132,7 @@ impl FromStr for Confindent {
 
         for line in lines {
             match ConfSection::parse(line) {
-                Some((k, v)) => ret.add_section(k, v),
+                Some(v) => ret.add_section(v),
                 None => continue,
             }
         }
@@ -112,17 +142,17 @@ impl FromStr for Confindent {
 }
 
 impl ConfParent for Confindent {
-    fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
-        self.sections.get(&key.into())
+    fn get_children<T: Into<String>>(&self, key: T) -> Option<Vec<&ConfSection>> {
+        self.get_sections_by_name(&key.into())
     }
 
-    fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
-        self.sections.get_mut(&key.into())
+    fn get_children_mut<T: Into<String>>(&mut self, key: T) -> Option<Vec<&mut ConfSection>> {
+        self.get_sections_by_name_mut(&key.into())
     }
 
     fn create_child<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self {
-        let sec = ConfSection::new(ConfItem::parse(&value.into()), 0, HashMap::new());
-        self.sections.insert(key.into(), sec);
+        let sec = ConfSection::new(key.into(), ConfItem::parse(&value.into()), 0, Vec::new());
+        self.sections.push(sec);
 
         self
     }
@@ -132,8 +162,8 @@ impl Into<String> for Confindent {
     fn into(self) -> String {
         let mut ret = String::new();
 
-        for (key, child) in self.sections {
-            ret.push_str(&format!("\n{}", child.into_string(key)));
+        for child in self.sections {
+            ret.push_str(&format!("\n{}", child.into_string()));
         }
 
         ret.trim().to_owned()
@@ -142,14 +172,16 @@ impl Into<String> for Confindent {
 
 #[derive(Debug, PartialEq)]
 pub struct ConfSection {
+    key: String,
     value: ConfItem,
     indent_level: u8,
-    children: ConfHash,
+    children: ConfVec,
 }
 
 impl ConfSection {
-    fn new(value: ConfItem, indent_level: u8, children: ConfHash) -> Self {
+    fn new(key: String, value: ConfItem, indent_level: u8, children: ConfVec) -> Self {
         ConfSection {
+            key,
             value,
             indent_level,
             children,
@@ -227,18 +259,18 @@ impl ConfSection {
         }
     }
 
-    fn into_string(self, key: String) -> String {
-        let mut ret = format!("{} {}", key, self.value);
+    fn into_string(self) -> String {
+        let mut ret = format!("{} {}", self.key, self.value);
 
-        for (key, child) in self.children {
-            let child_str = format!("\n\t{}", child.into_string(key).replace('\n', "\n\t"));
+        for child in self.children {
+            let child_str = format!("\n\t{}", child.into_string().replace('\n', "\n\t"));
             ret.push_str(&child_str);
         }
 
         ret
     }
 
-    fn parse(s: &str) -> Option<(String, Self)> {
+    fn parse(s: &str) -> Option<Self> {
         if s.is_empty() || s.trim_start().is_empty() {
             return None;
         }
@@ -269,26 +301,55 @@ impl ConfSection {
             None => ConfItem::Empty,
         };
 
-        Some((key, Self::new(value, indent_level, HashMap::new())))
+        Some(Self::new(key, value, indent_level, Vec::new()))
+    }
+
+    fn get_sections_by_name(&self, key: &str) -> Option<Vec<&ConfSection>> {
+        let mut ret: Vec<&ConfSection> = Vec::new();
+
+        for sec in &self.children {
+            if sec.key == key {
+                ret.push(sec);
+            }
+        }
+
+        if ret.is_empty() {
+            None
+        } else {
+            Some(ret)
+        }
+    }
+
+    fn get_sections_by_name_mut(&mut self, key: &str) -> Option<Vec<&mut ConfSection>> {
+        let mut ret: Vec<&mut ConfSection> = Vec::new();
+
+        for sec in &mut self.children {
+            if sec.key == key {
+                ret.push(sec);
+            }
+        }
+
+        if ret.is_empty() {
+            None
+        } else {
+            Some(ret)
+        }
     }
 }
 
 impl ConfParent for ConfSection {
-    fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
-        self.children.get(&key.into())
+    fn get_children<T: Into<String>>(&self, key: T) -> Option<Vec<&ConfSection>> {
+        self.get_sections_by_name(&key.into())
     }
 
-    fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
-        self.children.get_mut(&key.into())
+    fn get_children_mut<T: Into<String>>(&mut self, key: T) -> Option<Vec<&mut ConfSection>> {
+        self.get_sections_by_name_mut(&key.into())
     }
 
     fn create_child<T: Into<String>>(&mut self, key: T, value: T) -> &mut Self {
-        let sec = ConfSection::new(
-            ConfItem::parse(&value.into()),
-            self.indent_level + 1,
-            HashMap::new(),
-        );
-        self.children.insert(key.into(), sec);
+        let sec = ConfSection::new(key.into(), ConfItem::parse(&value.into()), 0, Vec::new());
+        self.children.push(sec);
+
         self
     }
 }
@@ -314,7 +375,7 @@ impl ConfItem {
 
 /// Methods for configuration sections with children
 pub trait ConfParent {
-    /// Get a reference to a child section
+    /// Get a reference to the first child section with this name
     ///
     /// ## Example
     /// ```
@@ -325,14 +386,45 @@ pub trait ConfParent {
     /// let conf = Confindent::from_str(conf_str).unwrap();
     /// let section = conf.get_child("Section").unwrap();
     /// ```
-    fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection>;
+    fn get_child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
+        let children_vec = self.get_children(key);
+
+        match children_vec {
+            Some(mut vec) => {
+                if vec.len() > 0 {
+                    Some(vec.remove(0))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
+    }
 
     /// Shorthand for [`get_child()`](#method.get_child)
     fn child<T: Into<String>>(&self, key: T) -> Option<&ConfSection> {
         self.get_child(key)
     }
 
-    /// Get a mutable reference to a child section
+    /// Get a Vec of children with this name
+    ///
+    /// ## Example
+    /// ```
+    /// use std::str::FromStr;
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let conf_str = "Section value0\nSection value1";
+    /// let conf = Confindent::from_str(conf_str).unwrap();
+    /// let sections = conf.get_children("Section").unwrap();
+    /// ```
+    fn get_children<T: Into<String>>(&self, key: T) -> Option<Vec<&ConfSection>>;
+
+    //// Shorthand for [`get_children()`](#method.get_children)
+    fn children<T: Into<String>>(&self, key: T) -> Option<Vec<&ConfSection>> {
+        self.get_children(key)
+    }
+
+    /// Get a mutable reference to the first child section with this name
     ///
     /// ## Example
     /// ```
@@ -343,11 +435,42 @@ pub trait ConfParent {
     /// let mut conf = Confindent::from_str(conf_str).unwrap();
     /// let mut section = conf.get_child_mut("Section").unwrap();
     /// ```
-    fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection>;
+    fn get_child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
+        let children_vec = self.get_children_mut(key);
+
+        match children_vec {
+            Some(mut vec) => {
+                if vec.len() > 0 {
+                    Some(vec.remove(0))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
+    }
 
     /// Shorthand for [`get_child_mut()`](#method.get_child_mut)
     fn child_mut<T: Into<String>>(&mut self, key: T) -> Option<&mut ConfSection> {
         self.get_child_mut(key)
+    }
+
+    /// Get a Vec of mutable children with this name
+    ///
+    /// ## Example
+    /// ```
+    /// use std::str::FromStr;
+    /// use confindent::{Confindent, ConfParent};
+    ///
+    /// let conf_str = "Section value0\nSection value1";
+    /// let mut conf = Confindent::from_str(conf_str).unwrap();
+    /// let mut sections = conf.get_children_mut("Section").unwrap();
+    /// ```
+    fn get_children_mut<T: Into<String>>(&mut self, key: T) -> Option<Vec<&mut ConfSection>>;
+
+    //// Shorthand for [`get_children_mut()`](#method.get_children_mut)
+    fn children_mut<T: Into<String>>(&mut self, key: T) -> Option<Vec<&mut ConfSection>> {
+        self.get_children_mut(key)
     }
 
     /// Create a child section
@@ -366,7 +489,7 @@ pub trait ConfParent {
         self.create_child(key, value)
     }
 
-    /// Get the value of a child
+    /// Get the value of the first child with this name
     ///
     /// ## Example
     /// ```
@@ -418,9 +541,9 @@ mod tests {
     #[test]
     fn parse_section_noindent() {
         let test_line = "Key Value";
-        let (key, section) = ConfSection::parse(test_line).unwrap();
+        let section = ConfSection::parse(test_line).unwrap();
 
-        assert_eq!(key, "Key");
+        assert_eq!(section.key, "Key");
         assert_eq!(section.value, ConfItem::Text("Value".to_string()));
         assert_eq!(section.indent_level, 0);
         assert!(section.children.is_empty());
@@ -429,9 +552,9 @@ mod tests {
     #[test]
     fn parse_section_indent() {
         let test_line = "\tKey Value";
-        let (key, section) = ConfSection::parse(test_line).unwrap();
+        let section = ConfSection::parse(test_line).unwrap();
 
-        assert_eq!(key, "Key");
+        assert_eq!(section.key, "Key");
         assert_eq!(section.value, ConfItem::Text("Value".to_string()));
         assert_eq!(section.indent_level, 1);
         assert!(section.children.is_empty());
@@ -440,7 +563,7 @@ mod tests {
     #[test]
     fn get_config_vec() {
         let test_line = "Vec 1,2,3,4";
-        let (_, section) = ConfSection::parse(test_line).unwrap();
+        let section = ConfSection::parse(test_line).unwrap();
 
         assert_eq!(section.get_vec::<u8>().unwrap(), vec![1, 2, 3, 4]);
     }
@@ -450,7 +573,7 @@ mod tests {
         let test_line = "Key Value";
         let config = Confindent::from_str(test_line).unwrap();
 
-        let first_section = config.sections.get("Key").unwrap();
+        let first_section = config.child("Key").unwrap();
         assert_eq!(first_section.value, ConfItem::Text("Value".to_string()));
         assert_eq!(first_section.indent_level, 0);
         assert!(first_section.children.is_empty());
@@ -461,15 +584,30 @@ mod tests {
         let test_line = "Key Value\nKey2 Value2";
         let config = Confindent::from_str(test_line).unwrap();
 
-        let first_section = config.sections.get("Key").unwrap();
+        let first_section = config.child("Key").unwrap();
         assert_eq!(first_section.value, ConfItem::Text("Value".to_string()));
         assert_eq!(first_section.indent_level, 0);
         assert!(first_section.children.is_empty());
 
-        let second_section = config.sections.get("Key2").unwrap();
+        let second_section = config.child("Key2").unwrap();
         assert_eq!(second_section.value, ConfItem::Text("Value2".to_string()));
         assert_eq!(second_section.indent_level, 0);
         assert!(second_section.children.is_empty());
+    }
+
+    #[test]
+    fn parse_config_two_sections_same_name() {
+        let test_line = "Key Value\nKey Value2";
+        let config = Confindent::from_str(test_line).unwrap();
+
+        let mut keys_key = config.get_children("Key").unwrap();
+        let second = keys_key.pop().unwrap();
+        let first = keys_key.pop().unwrap();
+
+        assert_eq!(first.key, "Key");
+        assert_eq!(first.value, ConfItem::Text("Value".to_string()));
+        assert_eq!(second.key, "Key");
+        assert_eq!(second.value, ConfItem::Text("Value2".to_string()));
     }
 
     #[test]
@@ -477,12 +615,12 @@ mod tests {
         let test_line = "Key Value\n\tChild Value2";
         let config = Confindent::from_str(test_line).unwrap();
 
-        let first_section = config.sections.get("Key").unwrap();
+        let first_section = config.child("Key").unwrap();
         assert_eq!(first_section.value, ConfItem::Text("Value".to_string()));
         assert_eq!(first_section.indent_level, 0);
         assert_eq!(first_section.children.len(), 1);
 
-        let second_section = first_section.children.get("Child").unwrap();
+        let second_section = first_section.child("Child").unwrap();
         assert_eq!(second_section.value, ConfItem::Text("Value2".to_string()));
         assert_eq!(second_section.indent_level, 1);
         assert!(second_section.children.is_empty());
