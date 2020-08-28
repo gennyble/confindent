@@ -3,9 +3,6 @@
 [![Downloads](https://flat.badgen.net/crates/d/confindent)][crate]
 
 [crate]: https://crates.io/crates/confindent
-[sourcehut]: https://git.sr.ht/~genbyte/confindent
-
-Tickets are [here](https://todo.sr.ht/~genbyte/confindent).
 
 **Conf**iguration by **indent**ation. Read the [spec](spec.md) inspired by
 the format of the ssh client configuration commonly found on Linux machines
