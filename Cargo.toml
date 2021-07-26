@@ -1,9 +1,9 @@
 [package]
 name = "confindent"
-version = "1.1.1"
+version = "2.0.0"
 description = "⚙️ A configuration format based on indentation"
-authors = ["genuinebyte <bja@genuinebyte.com>"]
-repository = "https://git.sr.ht/~genbyte/confindent"
+authors = ["gennyble <brad@genbyte.dev>"]
+repository = "https://github.com/gennyble/confindent"
 readme = "README.md"
 keywords = ["config", "indentation"]
 categories = ["config"]
