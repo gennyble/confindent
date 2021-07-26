@@ -3,13 +3,23 @@ use std::{
     str::FromStr,
 };
 
-use crate::error::{Error, ErrorKind};
+use crate::error::{ParseError, ParseErrorKind};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Indent {
     Empty,
     Tabs(usize),
     Spaces(usize),
+}
+
+impl Indent {
+    pub fn size(&self) -> usize {
+        match self {
+            Self::Empty => 0,
+            Self::Tabs(t) => *t,
+            Self::Spaces(t) => *t,
+        }
+    }
 }
 
 impl Add<usize> for Indent {
@@ -35,7 +45,7 @@ impl AddAssign<usize> for Indent {
 }
 
 impl FromStr for Indent {
-    type Err = ErrorKind;
+    type Err = ParseErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
@@ -56,12 +66,12 @@ impl FromStr for Indent {
             match ch {
                 ' ' => match indent {
                     Indent::Spaces(_) => indent += 1,
-                    Indent::Tabs(_) => return Err(ErrorKind::MixedIndent),
+                    Indent::Tabs(_) => return Err(ParseErrorKind::MixedIndent),
                     _ => unreachable!(),
                 },
                 '\t' => match indent {
                     Indent::Tabs(_) => indent += 1,
-                    Indent::Spaces(_) => return Err(ErrorKind::MixedIndent),
+                    Indent::Spaces(_) => return Err(ParseErrorKind::MixedIndent),
                     _ => unreachable!(),
                 },
                 _ => unreachable!(),
@@ -96,7 +106,7 @@ mod test {
 
         assert_eq!(
             Indent::from_str(mixedwhitespace).unwrap_err(),
-            ErrorKind::MixedIndent
+            ParseErrorKind::MixedIndent
         )
     }
 

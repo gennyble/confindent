@@ -15,6 +15,3 @@ edition = "2018"
 
 [[example]]
 name = "read"
-
-[[example]]
-name = "write"
