@@ -5,7 +5,7 @@ fn main() {
 
 	let host = conf.child("Host").unwrap();
 	let hostname = host.value().unwrap();
-	let port: u16 = host.child_parse("Port").unwrap().unwrap();
+	let port: u16 = host.child_parse("Port").unwrap();
 
 	for user in host.children("Username") {
 		println!(
