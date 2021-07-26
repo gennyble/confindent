@@ -1,4 +1,6 @@
-use crate::{error::ErrorKind, indent::Indent};
+use std::str::FromStr;
+
+use crate::{error::ParseErrorKind, indent::Indent};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Value {
@@ -9,7 +11,7 @@ pub struct Value {
 }
 
 impl Value {
-    pub fn new<K: Into<String>>(indent: Indent, key: K, value: Option<String>) -> Self {
+    pub(crate) fn new<K: Into<String>>(indent: Indent, key: K, value: Option<String>) -> Self {
         Self {
             indent,
             key: key.into(),
@@ -52,7 +54,7 @@ impl Value {
     /// - `Ok(Some(Value))` if parsing went well. Indent is valid and there's at least a key.
     /// - `Err(Error::MixedIndent(0))` if indentation was bad. That zero there is the line number,
     ///    which this function doesn't know, and is expected to be filled by the Confindent parser.
-    pub(crate) fn parse_line(line: &str) -> Result<Option<Self>, ErrorKind> {
+    pub(crate) fn from_str(line: &str) -> Result<Option<Self>, ParseErrorKind> {
         if line.is_empty() || line.trim().is_empty() {
             return Ok(None);
         }
@@ -69,6 +71,34 @@ impl Value {
             value,
             children: vec![],
         }))
+    }
+
+    pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
+        for child in &self.children {
+            if child.key == key.as_ref() {
+                return Some(child);
+            }
+        }
+        None
+    }
+
+    pub fn children<S: AsRef<str>>(&self, key: S) -> Vec<&Value> {
+        self.children
+            .iter()
+            .filter(|value| value.key == key.as_ref())
+            .collect()
+    }
+
+    pub fn child_value<S: AsRef<str>>(&self, key: S) -> Option<&str> {
+        self.child(key).map(|child| child.value()).flatten()
+    }
+
+    pub fn value(&self) -> Option<&str> {
+        self.value.as_deref()
+    }
+
+    pub fn parse<T: FromStr>(&self) -> Option<Result<T, <T as FromStr>::Err>> {
+        self.value.as_deref().map(|s| s.parse::<T>())
     }
 }
 
@@ -92,19 +122,19 @@ mod test {
     }
 
     #[test]
-    fn parse() {
+    fn from_str() {
         let empty = "";
-        assert_eq!(Value::parse(empty).unwrap(), None);
+        assert_eq!(Value::from_str(empty).unwrap(), None);
 
         let noindent = "Key Value";
         let noindent_novalue = "Key";
 
         assert_eq!(
-            Value::parse(noindent).unwrap().unwrap(),
+            Value::from_str(noindent).unwrap().unwrap(),
             Value::new(Indent::Empty, "Key", Some("Value".into()))
         );
         assert_eq!(
-            Value::parse(noindent_novalue).unwrap().unwrap(),
+            Value::from_str(noindent_novalue).unwrap().unwrap(),
             Value::new(Indent::Empty, "Key", None)
         );
 
@@ -112,15 +142,18 @@ mod test {
         let indent_novalue = "\tKey";
 
         assert_eq!(
-            Value::parse(indent).unwrap().unwrap(),
+            Value::from_str(indent).unwrap().unwrap(),
             Value::new(Indent::Tabs(1), "Key", Some("Value".into()))
         );
         assert_eq!(
-            Value::parse(indent_novalue).unwrap().unwrap(),
+            Value::from_str(indent_novalue).unwrap().unwrap(),
             Value::new(Indent::Tabs(1), "Key", None)
         );
 
         let mixed = " \tKey Value";
-        assert_eq!(Value::parse(mixed).unwrap_err(), ErrorKind::MixedIndent);
+        assert_eq!(
+            Value::from_str(mixed).unwrap_err(),
+            ParseErrorKind::MixedIndent
+        );
     }
 }
