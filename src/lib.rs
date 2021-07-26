@@ -44,6 +44,13 @@ impl Confindent {
 		self.child(key).map(|child| child.value()).flatten()
 	}
 
+	pub fn child_parse<S: AsRef<str>, T: FromStr>(
+		&self,
+		key: S,
+	) -> Option<Result<T, <T as FromStr>::Err>> {
+		self.child(key).map(|child| child.parse()).flatten()
+	}
+
 	fn push(&mut self, value: Value) -> Result<(), ParseErrorKind> {
 		// Handle the easy stuff first
 		if Indent::Empty == value.indent {

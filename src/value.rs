@@ -97,6 +97,13 @@ impl Value {
 		self.value.as_deref()
 	}
 
+	pub fn child_parse<S: AsRef<str>, T: FromStr>(
+		&self,
+		key: S,
+	) -> Option<Result<T, <T as FromStr>::Err>> {
+		self.child(key).map(|child| child.parse()).flatten()
+	}
+
 	pub fn parse<T: FromStr>(&self) -> Option<Result<T, <T as FromStr>::Err>> {
 		self.value.as_deref().map(|s| s.parse::<T>())
 	}
