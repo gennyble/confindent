@@ -44,11 +44,10 @@ impl Confindent {
 		self.child(key).map(|child| child.value()).flatten()
 	}
 
-	pub fn child_parse<S: AsRef<str>, T: FromStr>(
-		&self,
-		key: S,
-	) -> Option<Result<T, <T as FromStr>::Err>> {
-		self.child(key).map(|child| child.parse()).flatten()
+	pub fn child_parse<S: AsRef<str>, T: FromStr>(&self, key: S) -> Result<T, <T as FromStr>::Err> {
+		self.child(key)
+			.map(|child| child.parse())
+			.unwrap_or("".parse())
 	}
 
 	fn push(&mut self, value: Value) -> Result<(), ParseErrorKind> {
