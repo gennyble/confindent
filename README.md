@@ -72,11 +72,11 @@ Don't want to call `child(key)` and then `value()` or `parse()`? You can use
 at once. Both of these functions return what `value()` and `parse()` normally return,
 respectively.
 
-[ff]: https://docs.rs//confindent/2.0.0/confindent/struct.Confindent.html#method.from_file
-[child]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.child
-[children]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.children
-[value]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.value
-[parse]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.parse
-[vperror]: https://docs.rs//confindent/2.0.0/confindent/enum.ValueParseError.html
-[childvalue]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.childvalue
-[childparse]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.childparse
+[ff]: https://docs.rs/confindent/2.0.0/confindent/struct.Confindent.html#method.from_file
+[child]: https://docs.rs/confindent/2.0.0/confindent/struct.Value.html#method.child
+[children]: https://docs.rs/confindent/2.0.0/confindent/struct.Value.html#method.children
+[value]: https://docs.rs/confindent/2.0.0/confindent/struct.Value.html#method.value
+[parse]: https://docs.rs/confindent/2.0.0/confindent/struct.Value.html#method.parse
+[vperror]: https://docs.rs/confindent/2.0.0/confindent/enum.ValueParseError.html
+[childvalue]: https://docs.rs/confindent/2.0.0/confindent/struct.Value.html#method.childvalue
+[childparse]: https://docs.rs/confindent/2.0.0/confindent/struct.Value.html#method.childparse
