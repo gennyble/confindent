@@ -1,6 +1,8 @@
 use std::error::Error as StdError;
-use std::fmt;
+use std::fmt::{self, Debug, Pointer};
+use std::str::FromStr;
 
+/// What kind of error happened? Oh, ParseErrorKind of error.
 #[derive(Debug, PartialEq)]
 pub enum ParseErrorKind {
 	StartedIndented,
@@ -10,6 +12,7 @@ pub enum ParseErrorKind {
 	FileReadError,
 }
 
+/// Our main error type.
 #[derive(Debug, PartialEq)]
 pub struct ParseError {
 	pub line: usize,

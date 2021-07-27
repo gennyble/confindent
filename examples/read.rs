@@ -1,19 +1,16 @@
 use confindent::Confindent;
 
 fn main() {
-	let conf = Confindent::from_file("examples/example.conf").unwrap();
+	let conf = Confindent::from_file("examples/songinfo.conf").unwrap();
+	let song = conf.child("Song").unwrap();
+	let length: usize = song.child_parse("Length").unwrap();
 
-	let host = conf.child("Host").unwrap();
-	let hostname = host.value().unwrap();
-	let port: u16 = host.child_parse("Port").unwrap();
-
-	for user in host.children("Username") {
-		println!(
-			"ssh {}@{} -p {} -P {}",
-			user.value().unwrap(),
-			hostname,
-			user.child_value("Password").unwrap(),
-			port
-		);
-	}
+	println!(
+		"Now playing {} by {} [{}:{} {}kbps]",
+		song.value().unwrap(),
+		song.child_value("Artist").unwrap(),
+		length / 60, //minutes
+		length % 60, //seconds
+		song.child_value("Bitrate").unwrap()
+	);
 }
