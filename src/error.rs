@@ -52,15 +52,16 @@ impl fmt::Display for ParseError {
 
 /// Error returned when parsing a value fails
 ///
-/// ValueParseError will implement `Display`, `Debug`, and `PartialEq` as long
-/// long as `<T as FromStr>::Err` implements them.
-
+/// ValueParseError will implement `Display`, `Debug`, `PartialEq`, and `Error`
+/// as long `<T as FromStr>::Err` implements them.
 pub enum ValueParseError<T: FromStr> {
 	/// There was no value present to even try and parse
 	NoValue,
 	/// A value was present but the parse failed. The error is in this enum tuple.
 	ParseError(<T as FromStr>::Err),
 }
+
+impl<T: FromStr> StdError for ValueParseError<T> where <T as FromStr>::Err: StdError {}
 
 impl<T: FromStr> fmt::Display for ValueParseError<T>
 where
