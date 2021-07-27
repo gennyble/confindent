@@ -62,21 +62,21 @@ returns a Vec<&Value>.
 You can get a Value's value with [`value()`][fn-value]. It returns an Option<&str>.
 
 Want to parse a possible value into a different type, T? Instead of `value()` use
-[`parse()`][parse]. It returns the same Result as if you tried to parse a string
-into the value you want; the same as T:from_str. Remember how `value()`
-returns an Option? If there is no value present, **`parse()` will do T::from_str("").**
+[`parse()`][parse]. It returns Result<T, ValueParseError<T>>. That type
+may look weird and that's because it is. [`ValueParseError`][vperror] is an enum
+that can be `NoValue` or `ParseError(error)` where `error` is the error part of the
+Result that T::FromStr returns.
 
 Don't want to call `child(key)` and then `value()` or `parse()`? You can use
 [`child_value(key)`][childvalue] and [`child_parse(key)`][childparse] to do both of those
-at once. Remember how **`parse()` will give T::FromStr() an empty string** if there is no
-value? Well, if no child is found on a call to `child_parse(key)`, it does the same thing.
-This is the best way to go about not returning an `Option<Result<>>`, but
-still providing the error if parsing fails. 
+at once. Both of these functions return what `value()` and `parse()` normally return,
+respectively.
 
 [ff]: https://docs.rs//confindent/2.0.0/confindent/struct.Confindent.html#method.from_file
 [child]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.child
 [children]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.children
 [value]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.value
 [parse]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.parse
+[vperror]: https://docs.rs//confindent/2.0.0/confindent/enum.ValueParseError.html
 [childvalue]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.childvalue
 [childparse]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.childparse

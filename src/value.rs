@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use crate::{error::ParseErrorKind, indent::Indent};
+use crate::{
+	error::{ParseErrorKind, ValueParseError},
+	indent::Indent,
+};
 
 /// A parsed line of a configuration file.
 #[derive(Clone, Debug, PartialEq)]
@@ -170,11 +173,6 @@ impl Value {
 	///
 	/// Shorthand for [child](Value::child) and then [parse](Value::parse).
 	///
-	/// # Note
-	///
-	/// This function will try to parse an empty string as your type if the child does not
-	/// have a value **and** if no child was present.
-	///
 	/// # Example
 	///
 	/// ```rust
@@ -185,16 +183,17 @@ impl Value {
 	///
 	/// assert_eq!(host.child_parse("Port"), Ok(22));
 	/// ```
-	pub fn child_parse<S: AsRef<str>, T: FromStr>(&self, key: S) -> Result<T, <T as FromStr>::Err> {
+	pub fn child_parse<S: AsRef<str>, T: FromStr>(&self, key: S) -> Result<T, ValueParseError<T>> {
 		self.child(key)
 			.map(|child| child.parse())
-			.unwrap_or("".parse())
+			.unwrap_or(Err(ValueParseError::NoValue))
 	}
 
-	/// The same as [value](Value::value) but parses the value into your type. If there is no value
-	/// present, an empty string (`""`) is parsed instead. The type you're trying to parse to
-	/// must implement [FromStr](std::str::FromStr). You can think of this as shorthand for getting the
-	/// value and trying to parse with `.parse()` because that's exactly what it's doing internally.
+	/// The same as [value](Value::value) but parses the value into your type. The type you're trying to
+	/// parse to must implement [FromStr](std::str::FromStr).
+	///
+	/// You can think of this as shorthand for
+	/// getting the value and trying to parse with `.parse()` because that's exactly what it's doing internally.
 	///
 	/// # Example
 	///
@@ -205,8 +204,11 @@ impl Value {
 	///
 	/// assert_eq!(conf.child("Port").unwrap().parse(), Ok(22));
 	/// ```
-	pub fn parse<T: FromStr>(&self) -> Result<T, <T as FromStr>::Err> {
-		self.value.as_deref().unwrap_or("").parse()
+	pub fn parse<T: FromStr>(&self) -> Result<T, ValueParseError<T>> {
+		self.value
+			.as_ref()
+			.map(|child| child.parse().map_err(|e| ValueParseError::ParseError(e)))
+			.unwrap_or(Err(ValueParseError::NoValue))
 	}
 }
 
