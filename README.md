@@ -52,20 +52,20 @@ Root this is the root
 #### Using the crate, quickly! [also, here are the docs](https://docs.rs/confindent)
 
 Open and parse a file with [`Confindent::from_file`][ff]. Pass it a path. It returns
-a Result.
+a `Result<Confindent, ParseError>`.
 
 Get a direct child with the [`child(key)`][child] function. Key needs to be able
-to turn into a &str. This returns an Option<&Value>. [`Value`][value] is the main data-storing
+to turn into a `&str`. This returns an `Option<&Value>`. [`Value`][value] is the main data-storing
 struct. You can get multiple Value of the same name with [`children(key)`][children], which
-returns a Vec<&Value>.
+returns a `Vec<&Value>`.
 
-You can get a Value's value with [`value()`][fn-value]. It returns an Option<&str>.
+You can get a `Value`'s value with [`value()`][fn-value]. It returns an `Option<&str>`.
 
-Want to parse a possible value into a different type, T? Instead of `value()` use
-[`parse()`][parse]. It returns Result<T, ValueParseError<T>>. That type
+Want to parse a possible value into a different type, `T`? Instead of `value()` use
+[`parse()`][parse]. It returns `Result<T, ValueParseError<T>>`. That type
 may look weird and that's because it is. [`ValueParseError`][vperror] is an enum
 that can be `NoValue` or `ParseError(error)` where `error` is the error part of the
-Result that T::FromStr returns.
+Result that `T::FromStr` returns.
 
 Don't want to call `child(key)` and then `value()` or `parse()`? You can use
 [`child_value(key)`][childvalue] and [`child_parse(key)`][childparse] to do both of those
