@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use crate::{error::ParseErrorKind, indent::Indent};
 
+/// A parsed line of a configuration file.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Value {
 	pub(crate) indent: Indent,
@@ -11,18 +12,21 @@ pub struct Value {
 }
 
 impl Value {
-	pub(crate) fn new<K: Into<String>>(indent: Indent, key: K, value: Option<String>) -> Self {
+	#[allow(dead_code)] //used heavily in tests
+	pub(crate) fn new<K: Into<String>, V: Into<String>>(indent: Indent, key: K, value: V) -> Self {
+		let value = value.into();
+
 		Self {
 			indent,
 			key: key.into(),
-			value: value,
+			value: if value.is_empty() { None } else { Some(value) },
 			children: vec![],
 		}
 	}
 
 	/// Get the index of the end of the whitespace. The return value is the
 	/// index of the first non-whitespace character. You can directly use
-	/// this value to get a silice of only the whitespace. Like so:
+	/// this value to get a slice of only the whitespace. Like so:
 	///
 	/// ```ignore
 	/// use confindent::Value;
@@ -46,14 +50,14 @@ impl Value {
 		}
 	}
 
-	/// Parse a line to get a Value from it.
+	/// Parse a line to get a Value from it. This is not the function from FromStr, but just
+	/// an associated function with the same name. This is because of the differing return type.
 	///
 	/// # Returns
 	///
 	/// - `Ok(None)` if the string is empty or only whitespace.
 	/// - `Ok(Some(Value))` if parsing went well. Indent is valid and there's at least a key.
-	/// - `Err(Error::MixedIndent(0))` if indentation was bad. That zero there is the line number,
-	///    which this function doesn't know, and is expected to be filled by the Confindent parser.
+	/// - `Err(ParseErrorKind::MixedIndent)` if indentation was bad.
 	pub(crate) fn from_str(line: &str) -> Result<Option<Self>, ParseErrorKind> {
 		if line.is_empty() || line.trim().is_empty() {
 			return Ok(None);
@@ -62,6 +66,7 @@ impl Value {
 		let (whitespace, expression) = line.split_at(Self::whitespace_end_index(line));
 		let (key, value) = match expression.split_once(' ') {
 			None => (expression.to_owned(), None),
+			Some((key, value)) if value.is_empty() => (key.to_owned(), None),
 			Some((key, value)) => (key.to_owned(), Some(value.to_owned())),
 		};
 
@@ -73,6 +78,20 @@ impl Value {
 		}))
 	}
 
+	/// Get the first child with the provided key
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "child value\n\tgrandchild grandvalue".parse().unwrap();
+	/// let section = conf.child("key").unwrap();
+	/// let grandchild = section.child("child").unwrap();
+	///
+	/// assert_eq!(section.value(), Some("value"));
+	/// assert_eq!(grandchild.value(), Some("grandvalue"));
+	/// ```
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
 		for child in &self.children {
 			if child.key == key.as_ref() {
@@ -82,6 +101,22 @@ impl Value {
 		None
 	}
 
+	/// Get every child that is a direct descendant of this value with the provided name.
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let confstr = "child value\n\tgrandchild grandvalue\n\tgrandchild morevalue";
+	///
+	/// let conf: Confindent = confstr.parse().unwrap();
+	/// let section = conf.child("child").unwrap();
+	/// let children = section.children("grandchild");
+	///
+	/// assert_eq!(children[0].value(), Some("grandvalue"));
+	/// assert_eq!(children[1].value(), Some("morevalue"));
+	/// ```
 	pub fn children<S: AsRef<str>>(&self, key: S) -> Vec<&Value> {
 		self.children
 			.iter()
@@ -89,20 +124,87 @@ impl Value {
 			.collect()
 	}
 
+	/// Get the value of the first child with the provided key.
+	///
+	/// This is shorthand for calling [child](Value::child) and then [value](Value::value).
+	///
+	/// # Returns
+	///
+	/// The value of the child if both the child is present and it has a value, otherwise None.
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "child value\n\tgrandchild grandvalue".parse().unwrap();
+	/// let section = conf.child("child").unwrap();
+	///
+	/// assert_eq!(section.child_value("grandchild"), Some("grandvalue"));
+	/// ```
 	pub fn child_value<S: AsRef<str>>(&self, key: S) -> Option<&str> {
 		self.child(key).map(|child| child.value()).flatten()
 	}
 
+	/// Gets the contained value.
+	///
+	/// # Returns
+	///
+	/// The value if there is one, otherwise None
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "child value".parse().unwrap();
+	/// let section = conf.child("child").unwrap();
+	///
+	/// assert_eq!(section.value(), Some("value"));
+	/// ```
 	pub fn value(&self) -> Option<&str> {
 		self.value.as_deref()
 	}
 
+	/// Gets the parsed value of a child that matches the key.
+	///
+	/// Shorthand for [child](Value::child) and then [parse](Value::parse).
+	///
+	/// # Note
+	///
+	/// This function will try to parse an empty string as your type if the child does not
+	/// have a value **and** if no child was present.
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "Host host\n\tPort 22".parse().unwrap();
+	/// let host = conf.child("Host").unwrap();
+	///
+	/// assert_eq!(host.child_parse("Port"), Ok(22));
+	/// ```
 	pub fn child_parse<S: AsRef<str>, T: FromStr>(&self, key: S) -> Result<T, <T as FromStr>::Err> {
 		self.child(key)
 			.map(|child| child.parse())
 			.unwrap_or("".parse())
 	}
 
+	/// The same as [value](Value::value) but parses the value into your type. If there is no value
+	/// present, an empty string (`""`) is parsed instead. The type you're trying to parse to
+	/// must implement [FromStr](std::str::FromStr). You can think of this as shorthand for getting the
+	/// value and trying to parse with `.parse()` because that's exactly what it's doing internally.
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "Port 22".parse().unwrap();
+	///
+	/// assert_eq!(conf.child("Port").unwrap().parse(), Ok(22));
+	/// ```
 	pub fn parse<T: FromStr>(&self) -> Result<T, <T as FromStr>::Err> {
 		self.value.as_deref().unwrap_or("").parse()
 	}
@@ -137,11 +239,11 @@ mod test {
 
 		assert_eq!(
 			Value::from_str(noindent).unwrap().unwrap(),
-			Value::new(Indent::Empty, "Key", Some("Value".into()))
+			Value::new(Indent::Empty, "Key", "Value")
 		);
 		assert_eq!(
 			Value::from_str(noindent_novalue).unwrap().unwrap(),
-			Value::new(Indent::Empty, "Key", None)
+			Value::new(Indent::Empty, "Key", "")
 		);
 
 		let indent = "\tKey Value";
@@ -149,11 +251,11 @@ mod test {
 
 		assert_eq!(
 			Value::from_str(indent).unwrap().unwrap(),
-			Value::new(Indent::Tabs(1), "Key", Some("Value".into()))
+			Value::new(Indent::Tabs(1), "Key", "Value")
 		);
 		assert_eq!(
 			Value::from_str(indent_novalue).unwrap().unwrap(),
-			Value::new(Indent::Tabs(1), "Key", None)
+			Value::new(Indent::Tabs(1), "Key", "")
 		);
 
 		let mixed = " \tKey Value";
