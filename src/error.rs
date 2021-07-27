@@ -1,6 +1,5 @@
 use std::error::Error as StdError;
-use std::fmt::{self, Debug, Pointer};
-use std::str::FromStr;
+use std::fmt::{self, Debug};
 
 /// What kind of error happened? Oh, ParseErrorKind of error.
 #[derive(Debug, PartialEq)]
