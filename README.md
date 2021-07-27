@@ -79,5 +79,5 @@ respectively.
 [fn-value]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.value
 [parse]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.parse
 [vperror]: https://docs.rs/confindent/2.0.1/confindent/enum.ValueParseError.html
-[childvalue]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.childvalue
-[childparse]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.childparse
+[childvalue]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.child_value
+[childparse]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.child_parse
