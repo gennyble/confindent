@@ -23,26 +23,34 @@ Root this is the root
 		Grandchild I'm a grandchild!
 ```
 
-#### Using the crate, quickly! ([also, here are the docs](https://docs.rs/confindent))
+#### Using the crate, quickly! [also, here are the docs](https://docs.rs/confindent)
 
-Open and parse a file with `Confindent::from_file`. Pass it a path. It returns
+Open and parse a file with [`Confindent::from_file`][ff]. Pass it a path. It returns
 a Result.
 
-Get a direct child with the `child(key)` function. Key needs to be able
-to turn into a &str. This returns an Option<&Value>. `Value` is the main data-storing
-struct. You can get multiple Value of the same name with `children(key)`, which
+Get a direct child with the [`child(key)`][child] function. Key needs to be able
+to turn into a &str. This returns an Option<&Value>. [`Value`][value] is the main data-storing
+struct. You can get multiple Value of the same name with [`children(key)`][children], which
 returns a Vec<&Value>.
 
-You can get a Value's value with `value()`. It returns an Option<&str>.
+You can get a Value's value with [`value()`][fn-value]. It returns an Option<&str>.
 
 Want to parse a possible value into a different type, T? Instead of `value()` use
-`parse()`. It returns the same Result as if you tried to parse a string
+[`parse()`][parse]. It returns the same Result as if you tried to parse a string
 into the value you want; the same as T:from_str. Remember how `value()`
 returns an Option? If there is no value present, **`parse()` will do T::from_str("").**
 
 Don't want to call `child(key)` and then `value()` or `parse()`? You can use
-`child_value(key)` and `child_parse(key)` to do both of those
+[`child_value(key)`][childvalue] and [`child_parse(key)`][childparse] to do both of those
 at once. Remember how **`parse()` will give T::FromStr() an empty string** if there is no
 value? Well, if no child is found on a call to `child_parse(key)`, it does the same thing.
-It's the best way to go about not returning an `Option<Result<>>`, but still providing
-the error if parsing fails. 
+This is the best way to go about not returning an `Option<Result<>>`, but
+still providing the error if parsing fails. 
+
+[ff]: https://docs.rs//confindent/2.0.0/confindent/struct.Confindent.html#method.from_file
+[child]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.child
+[children]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.children
+[value]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.value
+[parse]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.parse
+[childvalue]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.childvalue
+[childparse]: https://docs.rs//confindent/2.0.0/confindent/struct.Value.html#method.childparse
