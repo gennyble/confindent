@@ -6,31 +6,17 @@
 //!
 //! # The Format
 //!
-//! Confindent was born out of a weird enjoyment of the way OpenSSH structures
-//! its configuration files so it is incredibly similar.
+//! It's a kind of tree, key-value thing. Lines are key-value pairs, the value
+//! starting at the first space after the indent. You can add a child to a value
+//! by indenting it with spaces or tabs. Indent the same amount to add another
+//! child to that same value. Indent more than you did initially to add a
+//! grandchild. Don't mix spaces and tabs. Like this!
 //!
-//! It's a kind of tree key-value format. It's pretty similar to JSON in that regard.
-//! A key is separated from it's value by a space. Your key can be anything, but the
-//! first space that appears in a line, after the indent, is where the value begins.
-//!
-//! You can indent with spaces or tabs, but don't mix them in one file. Really you
-//! just need to be sure that the entire indent, all the way from the not-indented
-//! root value, is the same, but be careful if you mix. Confindent will return an
-//! error telling you that spaces/tabs were mixed and which one it's supposed to
-//! be.
-//!
-//! Let's say you're writing a music player and for some reason you want to use
-//! confindent to define that song. The name of the song is Dots and the artist is
-//! Jerobeam Fenderson. It's on the album Oscilloscope Music, it's encoded
-//! at a bitrate of 320kbps, and it's 3:10 long (190 seconds). You can describe that
-//! perfectly like this:
-//!
-//! ```ignore
-//! Song Dots
-//! 	Artist Jerobeam Fenderson
-//! 	Album Oscilloscope Music
-//! 	Length 190
-//! 	Bitrate 320
+//! ```text
+//! Root this is the root
+//! 	Child I'm a child!
+//! 	Child You can have multiple children with the same keys!
+//! 		Grandchild I'm a grandchild!
 //! ```
 //!
 //! # Example
@@ -39,18 +25,22 @@
 //! use confindent::Confindent;
 //!
 //! fn main() {
-//! 	let conf = Confindent::from_file("examples/songinfo.conf").unwrap();
-//! 	let song = conf.child("Song").unwrap();
-//! 	let length: usize = song.child_parse("Length").unwrap();
+//! 	let conf: Confindent = "Pet Dog\n\tName Brady\n\tAge 10".parse().unwrap();
+//! 	let pet = conf.child("Pet").unwrap();
+//! 	let name = pet.child_value("Name").unwrap();
+//! 	let age: usize = pet.child_parse("Age").unwrap();
 //!
-//! 	println!(
-//! 		"Now playing {} by {} [{}:{} {}kbps]",
-//! 		song.value().unwrap(),
-//! 		song.child_value("Artist").unwrap(),
-//! 		length / 60, //minutes
-//! 		length % 60, //seconds
-//! 		song.child_value("Bitrate").unwrap()
-//! 	);
+//! 	let word = match pet.value() {
+//! 		Some("Dog") => "pupper",
+//! 		Some("Cat") => "kitty",
+//! 		_ => panic!(),
+//! 	};
+//!
+//! 	if age > 9 {
+//! 		println!("{}! {} is an old {}.", age, name, word);
+//! 	} else {
+//! 		println!("Only {}! {} is a good, young {}.", age, name, word);
+//! 	}
 //! }
 //! ```
 
@@ -60,7 +50,7 @@ mod value;
 
 use std::{fs, path::Path, str::FromStr};
 
-pub use error::{ParseError, ParseErrorKind};
+pub use error::{ParseError, ParseErrorKind, ValueParseError};
 use indent::Indent;
 pub use value::Value;
 
@@ -119,10 +109,10 @@ impl Confindent {
 	/// Pase the value of a child into your desired type.
 	///
 	/// Please, see [Value::child_parse] for more.
-	pub fn child_parse<S: AsRef<str>, T: FromStr>(&self, key: S) -> Result<T, <T as FromStr>::Err> {
+	pub fn child_parse<S: AsRef<str>, T: FromStr>(&self, key: S) -> Result<T, ValueParseError<T>> {
 		self.child(key)
 			.map(|child| child.parse())
-			.unwrap_or("".parse())
+			.unwrap_or(Err(ValueParseError::NoValue))
 	}
 
 	fn push(&mut self, value: Value) -> Result<(), ParseErrorKind> {
