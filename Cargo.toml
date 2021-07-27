@@ -1,6 +1,6 @@
 [package]
 name = "confindent"
-version = "2.0.0"
+version = "2.0.1"
 description = "⚙️ A configuration format based on indentation"
 authors = ["gennyble <brad@genbyte.dev>"]
 repository = "https://github.com/gennyble/confindent"
