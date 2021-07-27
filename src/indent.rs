@@ -3,23 +3,13 @@ use std::{
 	str::FromStr,
 };
 
-use crate::error::{ParseError, ParseErrorKind};
+use crate::error::ParseErrorKind;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Indent {
 	Empty,
 	Tabs(usize),
 	Spaces(usize),
-}
-
-impl Indent {
-	pub fn size(&self) -> usize {
-		match self {
-			Self::Empty => 0,
-			Self::Tabs(t) => *t,
-			Self::Spaces(t) => *t,
-		}
-	}
 }
 
 impl Add<usize> for Indent {
