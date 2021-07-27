@@ -25,7 +25,7 @@
 //! at a bitrate of 320kbps, and it's 3:10 long (190 seconds). You can describe that
 //! perfectly like this:
 //!
-//! ```
+//! ```ignore
 //! Song Dots
 //! 	Artist Jerobeam Fenderson
 //! 	Album Oscilloscope Music
