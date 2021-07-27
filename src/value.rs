@@ -85,12 +85,12 @@ impl Value {
 	/// ```rust
 	/// use confindent::Confindent;
 	///
-	/// let conf: Confindent = "child value\n\tgrandchild grandvalue".parse().unwrap();
-	/// let section = conf.child("key").unwrap();
+	/// let conf: Confindent = "rootkey rootvalue\n\tchild value".parse().unwrap();
+	/// let section = conf.child("rootkey").unwrap();
 	/// let grandchild = section.child("child").unwrap();
 	///
-	/// assert_eq!(section.value(), Some("value"));
-	/// assert_eq!(grandchild.value(), Some("grandvalue"));
+	/// assert_eq!(section.value(), Some("rootvalue"));
+	/// assert_eq!(grandchild.value(), Some("value"));
 	/// ```
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
 		for child in &self.children {
