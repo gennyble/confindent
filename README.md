@@ -1,4 +1,6 @@
 # Confindent
+
+[Docs!](https://docs.rs/confindent)  
 [![Crates](https://flat.badgen.net/crates/v/confindent)][crate]
 [![Downloads](https://flat.badgen.net/crates/d/confindent)][crate]
 
@@ -36,12 +38,13 @@ fn main() {
 
 ## Quickstart!
 
-#### The format, briefly.
+#### The format, briefly. [here's the very verbose spec](https://github.com/gennyble/confindent/blob/main/spec.md)
 It's a kind of tree, key-value thing. Lines are key-value pairs, the value
 starting at the first space after the indent. You can add a child to a value
 by indenting it with spaces or tabs. Indent the same amount to add another
 child to that same value. Indent more than you did initially to add a
 grandchild. Don't mix spaces and tabs. Like this!
+
 ```
 Root this is the root
 	Child I'm a child!
@@ -49,7 +52,7 @@ Root this is the root
 		Grandchild I'm a grandchild!
 ```
 
-#### Using the crate, quickly! [also, here are the docs](https://docs.rs/confindent)
+#### Using the crate, quickly! [also, here are the docs again](https://docs.rs/confindent)
 
 Open and parse a file with [`Confindent::from_file`][ff]. Pass it a path. It returns
 a `Result<Confindent, ParseError>`.
