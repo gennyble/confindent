@@ -1,7 +1,7 @@
 # Confindent
 
-[Docs!](https://docs.rs/confindent)  
 [![Crates](https://flat.badgen.net/crates/v/confindent)][crate]
+[![Docs](https://docs.rs/confindent/badge.svg)](https://docs.rs/confindent)
 [![Downloads](https://flat.badgen.net/crates/d/confindent)][crate]
 
 [crate]: https://crates.io/crates/confindent
