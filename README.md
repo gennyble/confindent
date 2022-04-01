@@ -63,7 +63,9 @@ to turn into a `&str`. This returns an `Option<&Value>`. [`Value`][value] is the
 struct. You can get multiple Value of the same name with [`children(key)`][children], which
 returns a `Vec<&Value>`.
 
-You can get a `Value`'s value with [`value()`][fn-value]. It returns an `Option<&str>`.
+You can get a `Value`'s value with [`value()`][fn-value]. It returns an `Option<&str>`. If you want
+to check that a `Value` has a direct  child but don't care about the value, use
+[`has_child(key)`][haschild]. It returns `bool` for whether or not a child was found with that key.
 
 Want to parse a possible value into a different type, `T`? Instead of `value()` use
 [`parse()`][parse]. It returns `Result<T, ValueParseError<T>>`. That type
@@ -81,6 +83,7 @@ respectively.
 [children]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.children
 [value]: https://docs.rs/confindent/latest/confindent/struct.Value.html
 [fn-value]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.value
+[haschild]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.has_child
 [parse]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.parse
 [vperror]: https://docs.rs/confindent/latest/confindent/enum.ValueParseError.html
 [childvalue]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child_value
