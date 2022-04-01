@@ -45,7 +45,7 @@ by indenting it with spaces or tabs. Indent the same amount to add another
 child to that same value. Indent more than you did initially to add a
 grandchild. Don't mix spaces and tabs. Like this!
 
-```
+```ignore
 Root this is the root
 	Child I'm a child!
 	Child You can have multiple children with the same keys!
@@ -75,12 +75,12 @@ Don't want to call `child(key)` and then `value()` or `parse()`? You can use
 at once. Both of these functions return what `value()` and `parse()` normally return,
 respectively.
 
-[ff]: https://docs.rs/confindent/2.0.1/confindent/struct.Confindent.html#method.from_file
-[child]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.child
-[children]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.children
-[value]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html
-[fn-value]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.value
-[parse]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.parse
-[vperror]: https://docs.rs/confindent/2.0.1/confindent/enum.ValueParseError.html
-[childvalue]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.child_value
-[childparse]: https://docs.rs/confindent/2.0.1/confindent/struct.Value.html#method.child_parse
+[ff]: https://docs.rs/confindent/latest/confindent/struct.Confindent.html#method.from_file
+[child]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child
+[children]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.children
+[value]: https://docs.rs/confindent/latest/confindent/struct.Value.html
+[fn-value]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.value
+[parse]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.parse
+[vperror]: https://docs.rs/confindent/latest/confindent/enum.ValueParseError.html
+[childvalue]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child_value
+[childparse]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child_parse

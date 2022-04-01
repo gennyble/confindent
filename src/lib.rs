@@ -285,3 +285,9 @@ mod test {
 		);
 	}
 }
+
+// Code from the bottom of this page:
+// https://doc.rust-lang.org/rustdoc/documentation-tests.html
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+struct ReadmeDocTests;
