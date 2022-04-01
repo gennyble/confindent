@@ -127,6 +127,31 @@ impl Value {
 			.collect()
 	}
 
+	/// Check if there are any direct children with the provided key.
+	///
+	/// # Returns
+	///
+	/// `true` if there was at least one child with the key, otherwise `false`
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let confstr = "Host localhost\n\tUseCompression";
+	///
+	/// let conf: Confindent = confstr.parse().unwrap();
+	/// let host = conf.child("Host").unwrap();
+	///
+	/// assert!(host.has_child("UseCompression"));
+	/// ```
+	pub fn has_child<S: AsRef<str>>(&self, key: S) -> bool {
+		self.children
+			.iter()
+			.find(|value| value.key == key.as_ref())
+			.is_some()
+	}
+
 	/// Get the value of the first child with the provided key.
 	///
 	/// This is shorthand for calling [child](Value::child) and then [value](Value::value).
@@ -193,7 +218,7 @@ impl Value {
 	/// parse to must implement [FromStr](std::str::FromStr).
 	///
 	/// You can think of this as shorthand for
-	/// getting the value and trying to parse with `.parse()` because that's exactly what it's doing internally.
+	/// getting the value and trying to parse with `.parse()` because that's exactly what is happening internally.
 	///
 	/// # Example
 	///
