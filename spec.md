@@ -23,7 +23,7 @@ LoginMessage Hello! Please enjoy your stay :D
 ```
 
 Values can be empty. You can think of this as a boolean type, although there are
-no strict types in the specification. Here's an example of what that me look like,
+no strict types in the specification. Here's an example of what that may look like,
 building off of the previous one.
 
 ```
