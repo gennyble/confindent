@@ -99,6 +99,16 @@ impl Confindent {
 			.collect()
 	}
 
+	/// Check if there are any direct children with the provided key.
+	///
+	/// See [Value::has_child] for more.
+	pub fn has_child<S: AsRef<str>>(&self, key: S) -> bool {
+		self.children
+			.iter()
+			.find(|value| value.key == key.as_ref())
+			.is_some()
+	}
+
 	/// Get the value of a child with the provided key.
 	///
 	/// See [Value::child_value] for more.
