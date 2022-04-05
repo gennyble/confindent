@@ -11,7 +11,7 @@ pub struct Value {
 	pub(crate) indent: Indent,
 	pub(crate) key: String,
 	pub(crate) value: Option<String>,
-	pub(crate) children: Vec<Value>,
+	pub children: Vec<Value>,
 }
 
 impl Value {

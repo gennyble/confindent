@@ -57,7 +57,7 @@ pub use value::Value;
 /// A parsed configuration file. This struct holds the values with no indentation.
 #[derive(Debug, PartialEq)]
 pub struct Confindent {
-	children: Vec<Value>,
+	pub children: Vec<Value>,
 }
 
 impl Confindent {
