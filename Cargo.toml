@@ -1,17 +1,14 @@
 [package]
 name = "confindent"
-version = "2.0.1"
+version = "2.1.0"
 description = "⚙️ A configuration format based on indentation"
-authors = ["gennyble <brad@genbyte.dev>"]
+authors = ["Genny Z <gen@nyble.dev>"]
 repository = "https://github.com/gennyble/confindent"
 readme = "README.md"
 keywords = ["config", "indentation"]
 categories = ["config"]
 license = "ISC"
-edition = "2018"
-
-[dependencies]
-
+edition = "2021"
 
 [[example]]
 name = "read"
