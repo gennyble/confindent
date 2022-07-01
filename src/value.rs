@@ -174,6 +174,29 @@ impl Value {
 		self.child(key).map(|child| child.value()).flatten()
 	}
 
+	/// Get the value of the first child with the provided key.
+	///
+	/// This is similar to [Value::child_value] but it clones the string instead of returning
+	/// a reference.
+	///
+	/// # Returns
+	///
+	/// The value of the child, cloned to a `String` if both the child and value are present, or None.
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "key value\n\tchildkey childvalue".parse().unwrap();
+	/// let section = conf.child("key").unwrap();
+	///
+	/// assert_eq!(section.child_owned("childkey"), Some(String::from("childvalue")))
+	/// ```
+	pub fn child_owned<S: AsRef<str>>(&self, key: S) -> Option<String> {
+		self.child_value(key).map(<_>::to_owned)
+	}
+
 	/// Gets the contained value.
 	///
 	/// # Returns
@@ -192,6 +215,26 @@ impl Value {
 	/// ```
 	pub fn value(&self) -> Option<&str> {
 		self.value.as_deref()
+	}
+
+	/// Gets, and clones, the contained value.
+	///
+	/// # Returns
+	///
+	/// The value as a `String` if there is one, otherwise None
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "child value".parse().unwrap();
+	/// let section = conf.child("child").unwrap();
+	///
+	/// assert_eq!(section.value_owned(), Some(String::from("value")));
+	/// ```
+	pub fn value_owned(&self) -> Option<String> {
+		self.value.clone()
 	}
 
 	/// Gets the parsed value of a child that matches the key.

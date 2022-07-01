@@ -116,6 +116,13 @@ impl Confindent {
 		self.child(key).map(|child| child.value()).flatten()
 	}
 
+	/// Get the value of a child and clone it.
+	///
+	/// See [Value::child_owned] for more.
+	pub fn child_owned<S: AsRef<str>>(&self, key: S) -> Option<String> {
+		self.child_value(key).map(<_>::to_owned)
+	}
+
 	/// Pase the value of a child into your desired type.
 	///
 	/// Please, see [Value::child_parse] for more.
