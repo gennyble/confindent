@@ -3,7 +3,7 @@
 [![Crates](https://flat.badgen.net/crates/v/confindent)][crate]
 [![Docs](https://docs.rs/confindent/badge.svg)](https://docs.rs/confindent)
 [![Downloads](https://flat.badgen.net/crates/d/confindent)][crate]
-![GitHub workflows badge](https://github.com/gennyble/confindent/actions/workflows/tests.yml/badge.svg)
+![GitHub workflows badge](https://github.com/gennyble/confindent/actions/workflows/actions.yml/badge.svg)
 
 [crate]: https://crates.io/crates/confindent
 
