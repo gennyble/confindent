@@ -63,7 +63,8 @@ to turn into a `&str`. This returns an `Option<&Value>`. [`Value`][value] is the
 struct. You can get multiple Value of the same name with [`children(key)`][children], which
 returns a `Vec<&Value>`.
 
-You can get a `Value`'s value with [`value()`][fn-value]. It returns an `Option<&str>`. If you want
+You can get a `Value`'s value with [`value()`][fn-value]. It returns an `Option<&str>`. Get an owned,
+`Option<String>` with [`value_owned()`][valueowned]. If you want
 to check that a `Value` has a direct  child but don't care about the value, use
 [`has_child(key)`][haschild]. It returns `bool` for whether or not a child was found with that key.
 
@@ -76,15 +77,18 @@ Result that `T::FromStr` returns.
 Don't want to call `child(key)` and then `value()` or `parse()`? You can use
 [`child_value(key)`][childvalue] and [`child_parse(key)`][childparse] to do both of those
 at once. Both of these functions return what `value()` and `parse()` normally return,
-respectively.
+respectively. There's also [`child_owned()`][childowned] which is like `value_owned()` wherein
+it returns an `Option<String>` of a child's value.
 
 [ff]: https://docs.rs/confindent/latest/confindent/struct.Confindent.html#method.from_file
 [child]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child
 [children]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.children
 [value]: https://docs.rs/confindent/latest/confindent/struct.Value.html
 [fn-value]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.value
+[valueowned]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.value_owned
 [haschild]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.has_child
 [parse]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.parse
 [vperror]: https://docs.rs/confindent/latest/confindent/enum.ValueParseError.html
 [childvalue]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child_value
+[childowned]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child_owned
 [childparse]: https://docs.rs/confindent/latest/confindent/struct.Value.html#method.child_parse
