@@ -1,8 +1,10 @@
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use crate::{
 	error::{ParseErrorKind, ValueParseError},
 	indent::Indent,
+	line::Line,
+	ValueIterator, ValueIteratorMut,
 };
 
 /// A parsed line of a configuration file.
@@ -11,7 +13,7 @@ pub struct Value {
 	pub(crate) indent: Indent,
 	pub(crate) key: String,
 	pub(crate) value: Option<String>,
-	pub children: Vec<Value>,
+	pub(crate) children: Vec<Line>,
 }
 
 impl Value {
@@ -24,6 +26,18 @@ impl Value {
 			key: key.into(),
 			value: if value.is_empty() { None } else { Some(value) },
 			children: vec![],
+		}
+	}
+
+	pub fn values(&self) -> ValueIterator {
+		ValueIterator {
+			inner: self.children.iter(),
+		}
+	}
+
+	pub fn values_mut(&mut self) -> ValueIteratorMut {
+		ValueIteratorMut {
+			inner: self.children.iter_mut(),
 		}
 	}
 
@@ -53,32 +67,29 @@ impl Value {
 		}
 	}
 
-	/// Parse a line to get a Value from it. This is not the function from FromStr, but just
-	/// an associated function with the same name. This is because of the differing return type.
-	///
-	/// # Returns
-	///
-	/// - `Ok(None)` if the string is empty or only whitespace.
-	/// - `Ok(Some(Value))` if parsing went well. Indent is valid and there's at least a key.
-	/// - `Err(ParseErrorKind::MixedIndent)` if indentation was bad.
-	pub(crate) fn from_str(line: &str) -> Result<Option<Self>, ParseErrorKind> {
-		if line.is_empty() || line.trim().is_empty() {
-			return Ok(None);
-		}
+	pub(crate) fn split_whitespace(s: &str) -> Result<(Indent, &str), ParseErrorKind> {
+		let (whitespace, other) = s.split_at(Self::whitespace_end_index(s));
+		Ok((whitespace.parse()?, other))
+	}
 
-		let (whitespace, expression) = line.split_at(Self::whitespace_end_index(line));
-		let (key, value) = match expression.split_once(' ') {
-			None => (expression.to_owned(), None),
+	pub(crate) fn from_indent_str(indent: Indent, line: &str) -> Self {
+		let (key, value) = match line.split_once(' ') {
+			None => (line.to_owned(), None),
 			Some((key, value)) if value.is_empty() => (key.to_owned(), None),
 			Some((key, value)) => (key.to_owned(), Some(value.to_owned())),
 		};
 
-		Ok(Some(Self {
-			indent: whitespace.parse()?,
+		Self {
+			indent,
 			key,
 			value,
 			children: vec![],
-		}))
+		}
+	}
+
+	pub(crate) fn from_str(line: &str) -> Result<Self, ParseErrorKind> {
+		let (white, expr) = Self::split_whitespace(line)?;
+		Ok(Value::from_indent_str(white, expr))
 	}
 
 	/// Get the first child with the provided key
@@ -96,7 +107,7 @@ impl Value {
 	/// assert_eq!(grandchild.value(), Some("value"));
 	/// ```
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
-		for child in &self.children {
+		for child in self.values() {
 			if child.key == key.as_ref() {
 				return Some(child);
 			}
@@ -121,8 +132,7 @@ impl Value {
 	/// assert_eq!(children[1].value(), Some("morevalue"));
 	/// ```
 	pub fn children<S: AsRef<str>>(&self, key: S) -> Vec<&Value> {
-		self.children
-			.iter()
+		self.values()
 			.filter(|value| value.key == key.as_ref())
 			.collect()
 	}
@@ -146,8 +156,7 @@ impl Value {
 	/// assert!(host.has_child("UseCompression"));
 	/// ```
 	pub fn has_child<S: AsRef<str>>(&self, key: S) -> bool {
-		self.children
-			.iter()
+		self.values()
 			.find(|value| value.key == key.as_ref())
 			.is_some()
 	}
@@ -280,6 +289,29 @@ impl Value {
 	}
 }
 
+impl fmt::Display for Value {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let Value {
+			indent,
+			key,
+			value,
+			children,
+		} = self;
+
+		if let Some(value) = value {
+			write!(f, "{indent}{key} {value}\n")?;
+		} else {
+			write!(f, "{indent}{key}\n")?;
+		}
+
+		for child in children {
+			write!(f, "{child}")?;
+		}
+
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod test {
 	use super::*;
@@ -301,18 +333,15 @@ mod test {
 
 	#[test]
 	fn from_str() {
-		let empty = "";
-		assert_eq!(Value::from_str(empty).unwrap(), None);
-
 		let noindent = "Key Value";
 		let noindent_novalue = "Key";
 
 		assert_eq!(
-			Value::from_str(noindent).unwrap().unwrap(),
+			Value::from_str(noindent).unwrap(),
 			Value::new(Indent::Empty, "Key", "Value")
 		);
 		assert_eq!(
-			Value::from_str(noindent_novalue).unwrap().unwrap(),
+			Value::from_str(noindent_novalue).unwrap(),
 			Value::new(Indent::Empty, "Key", "")
 		);
 
@@ -320,12 +349,12 @@ mod test {
 		let indent_novalue = "\tKey";
 
 		assert_eq!(
-			Value::from_str(indent).unwrap().unwrap(),
-			Value::new(Indent::Tabs(1), "Key", "Value")
+			Value::from_str(indent).unwrap(),
+			Value::new(Indent::Tabs { count: 1, delta: 1 }, "Key", "Value")
 		);
 		assert_eq!(
-			Value::from_str(indent_novalue).unwrap().unwrap(),
-			Value::new(Indent::Tabs(1), "Key", "")
+			Value::from_str(indent_novalue).unwrap(),
+			Value::new(Indent::Tabs { count: 1, delta: 1 }, "Key", "")
 		);
 
 		let mixed = " \tKey Value";
@@ -333,5 +362,39 @@ mod test {
 			Value::from_str(mixed).unwrap_err(),
 			ParseErrorKind::MixedIndent
 		);
+	}
+
+	#[test]
+	fn no_indent_only_key() {
+		let value = Value::new(Indent::Empty, "Key", "");
+		let expected = "Key\n";
+
+		assert_eq!(value.to_string(), expected)
+	}
+
+	#[test]
+	fn no_indent_with_value() {
+		let value = Value::new(Indent::Empty, "Key", "Value");
+		let expected = "Key Value\n";
+
+		assert_eq!(value.to_string(), expected)
+	}
+
+	#[test]
+	fn no_indent_with_value_children() {
+		let value = Value {
+			indent: Indent::Empty,
+			key: "Key".into(),
+			value: Some("Value".into()),
+			children: vec![Line::Value(Value::new(
+				Indent::Tabs { count: 1, delta: 1 },
+				"ChildKey",
+				"Value",
+			))],
+		};
+
+		let expected = "Key Value\n\tChildKey Value\n";
+
+		assert_eq!(value.to_string(), expected)
 	}
 }

@@ -39,18 +39,20 @@
 
 mod error;
 mod indent;
+mod line;
 mod value;
 
 use std::{fs, path::Path, str::FromStr};
 
 pub use error::{ParseError, ParseErrorKind, ValueParseError};
 use indent::Indent;
+use line::Line;
 pub use value::Value;
 
 /// A parsed configuration file. This struct holds the values with no indentation.
 #[derive(Debug, PartialEq)]
 pub struct Confindent {
-	pub children: Vec<Value>,
+	children: Vec<Line>,
 }
 
 impl Confindent {
@@ -73,7 +75,7 @@ impl Confindent {
 	///
 	/// See [Value::child] for more.
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
-		for child in &self.children {
+		for child in self.values() {
 			if child.key == key.as_ref() {
 				return Some(child);
 			}
@@ -86,8 +88,7 @@ impl Confindent {
 	///
 	/// See [Value::children] for more.
 	pub fn children<S: AsRef<str>>(&self, key: S) -> Vec<&Value> {
-		self.children
-			.iter()
+		self.values()
 			.filter(|value| value.key == key.as_ref())
 			.collect()
 	}
@@ -96,8 +97,7 @@ impl Confindent {
 	///
 	/// See [Value::has_child] for more.
 	pub fn has_child<S: AsRef<str>>(&self, key: S) -> bool {
-		self.children
-			.iter()
+		self.values()
 			.find(|value| value.key == key.as_ref())
 			.is_some()
 	}
@@ -125,52 +125,82 @@ impl Confindent {
 			.unwrap_or(Err(ValueParseError::NoValue))
 	}
 
-	fn push(&mut self, value: Value) -> Result<(), ParseErrorKind> {
+	pub fn values(&self) -> ValueIterator {
+		ValueIterator {
+			inner: self.children.iter(),
+		}
+	}
+
+	pub fn values_mut(&mut self) -> ValueIteratorMut {
+		ValueIteratorMut {
+			inner: self.children.iter_mut(),
+		}
+	}
+
+	fn push(&mut self, mut line: Line) -> Result<(), ParseErrorKind> {
+		let indent = match &mut line {
+			Line::Blank(_) => {
+				self.push_last(line);
+				return Ok(());
+			}
+			Line::Value(v) => &mut v.indent,
+			Line::Comment { ref mut indent, .. } => indent,
+		};
+
 		// Handle the easy stuff first
-		if Indent::Empty == value.indent {
-			self.children.push(value);
+		if Indent::Empty == *indent {
+			self.children.push(line);
 			return Ok(());
 		} else if self.children.is_empty() {
 			return Err(ParseErrorKind::StartedIndented);
 		}
 
-		let mut curr = self.children.last_mut().unwrap();
-		match value.indent {
-			Indent::Tabs(tabsize) => loop {
-				match curr.children.last() {
+		let mut curr = self.values_mut().last().unwrap();
+		match indent {
+			Indent::Tabs { count: tabsize, .. } => loop {
+				match curr.values_mut().last() {
 					None => {
-						curr.children.push(value);
+						indent.delta_from(&curr.indent)?;
+						curr.children.push(line);
 						break;
 					}
 					Some(child) => match child.indent {
 						Indent::Empty => unreachable!(),
-						Indent::Spaces(_) => return Err(ParseErrorKind::TabsWithSpaces),
-						Indent::Tabs(level) => {
-							if tabsize == level {
-								curr.children.push(value);
+						Indent::Spaces { .. } => return Err(ParseErrorKind::TabsWithSpaces),
+						Indent::Tabs {
+							count: child_tabsize,
+							..
+						} => {
+							if *tabsize == child_tabsize {
+								indent.delta_from(&child.indent)?;
+								curr.children.push(line);
 								break;
 							} else {
-								curr = curr.children.last_mut().unwrap();
+								curr = curr.values_mut().last().unwrap();
 							}
 						}
 					},
 				}
 			},
-			Indent::Spaces(size) => loop {
-				match curr.children.last() {
+			Indent::Spaces { count: spaces, .. } => loop {
+				match curr.values().last() {
 					None => {
-						curr.children.push(value);
+						curr.children.push(line);
 						break;
 					}
 					Some(child) => match child.indent {
 						Indent::Empty => unreachable!(),
-						Indent::Tabs(_) => return Err(ParseErrorKind::SpacesWithTabs),
-						Indent::Spaces(level) => {
-							if size == level {
-								curr.children.push(value);
+						Indent::Tabs { .. } => return Err(ParseErrorKind::SpacesWithTabs),
+						Indent::Spaces {
+							count: child_spaces,
+							..
+						} => {
+							if *spaces == child_spaces {
+								indent.delta_from(&child.indent)?;
+								curr.children.push(line);
 								break;
 							} else {
-								curr = curr.children.last_mut().unwrap();
+								curr = curr.values_mut().last().unwrap();
 							}
 						}
 					},
@@ -180,6 +210,27 @@ impl Confindent {
 		}
 
 		Ok(())
+	}
+
+	/// Push the provided [Line] to the last, deepest node
+	fn push_last(&mut self, line: Line) {
+		let mut curr = match self.values_mut().last() {
+			None => {
+				self.children.push(line);
+				return;
+			}
+			Some(ln) => ln,
+		};
+
+		loop {
+			match curr.values_mut().last() {
+				None => {
+					self.children.push(line);
+					return;
+				}
+				Some(last) => curr = last,
+			}
+		}
 	}
 }
 
@@ -193,21 +244,84 @@ impl FromStr for Confindent {
 			|e: ParseErrorKind, ln: usize| -> ParseError { ParseError { line: ln, kind: e } };
 
 		for (line_number, line) in lines {
-			let value_op = Value::from_str(line).map_err(|e| add_ln(e, line_number))?;
+			if blank_line(line) {
+				ret.push_last(Line::Blank(line.to_owned()));
+				continue;
+			}
 
-			match value_op {
-				Some(v) => ret.push(v).map_err(|e| add_ln(e, line_number))?,
-				None => continue,
+			let (indent, other) =
+				Value::split_whitespace(line).map_err(|e| add_ln(e, line_number))?;
+
+			let line = if let Some(comment) = other.strip_prefix('#') {
+				Line::Comment {
+					indent,
+					comment: comment.into(),
+				}
+			} else {
+				Line::Value(Value::from_str(line).map_err(|e| add_ln(e, line_number))?)
 			};
+
+			ret.push(line).map_err(|e| add_ln(e, line_number))?;
 		}
 
 		Ok(ret)
 	}
 }
 
+fn blank_line(s: &str) -> bool {
+	for ch in s.chars() {
+		if !ch.is_whitespace() {
+			return false;
+		}
+	}
+	true
+}
+
+pub struct ValueIterator<'a> {
+	inner: std::slice::Iter<'a, Line>,
+}
+
+impl<'a> Iterator for ValueIterator<'a> {
+	type Item = &'a Value;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		loop {
+			match self.inner.next() {
+				None => break None,
+				Some(Line::Value(v)) => break Some(v),
+				_ => continue,
+			}
+		}
+	}
+}
+
+pub struct ValueIteratorMut<'a> {
+	inner: std::slice::IterMut<'a, Line>,
+}
+
+impl<'a> Iterator for ValueIteratorMut<'a> {
+	type Item = &'a mut Value;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		loop {
+			match self.inner.next() {
+				None => break None,
+				Some(Line::Value(v)) => break Some(v),
+				_ => continue,
+			}
+		}
+	}
+}
+
 #[cfg(test)]
 mod test {
 	use super::*;
+
+	macro_rules! value {
+		($indent:expr, $key:expr, $value:expr) => {
+			Line::Value(Value::new($indent, $key, $value))
+		};
+	}
 
 	#[test]
 	fn parses_single() {
@@ -216,7 +330,7 @@ mod test {
 		assert_eq!(
 			Confindent::from_str(single).unwrap(),
 			Confindent {
-				children: vec![Value::new(Indent::Empty, "Key", "Value")]
+				children: vec![value!(Indent::Empty, "Key", "Value")]
 			}
 		);
 	}
@@ -229,8 +343,8 @@ mod test {
 			Confindent::from_str(double).unwrap(),
 			Confindent {
 				children: vec![
-					Value::new(Indent::Empty, "Key1", "Value1"),
-					Value::new(Indent::Empty, "Key2", "Value2")
+					value!(Indent::Empty, "Key1", "Value1"),
+					value!(Indent::Empty, "Key2", "Value2")
 				]
 			}
 		);
@@ -243,12 +357,16 @@ mod test {
 		assert_eq!(
 			Confindent::from_str(doubledent).unwrap(),
 			Confindent {
-				children: vec![Value {
+				children: vec![Line::Value(Value {
 					indent: Indent::Empty,
 					key: "Key1".into(),
 					value: Some("Value1".into()),
-					children: vec![Value::new(Indent::Tabs(1), "Key2", "Value2")]
-				}]
+					children: vec![value!(
+						Indent::Tabs { count: 1, delta: 1 },
+						"Key2",
+						"Value2"
+					)]
+				})]
 			}
 		);
 	}
@@ -260,17 +378,21 @@ mod test {
 		assert_eq!(
 			Confindent::from_str(doubledent).unwrap(),
 			Confindent {
-				children: vec![Value {
+				children: vec![Line::Value(Value {
 					indent: Indent::Empty,
 					key: "Key1".into(),
 					value: Some("Value1".into()),
-					children: vec![Value {
-						indent: Indent::Tabs(1),
+					children: vec![Line::Value(Value {
+						indent: Indent::Tabs { count: 1, delta: 1 },
 						key: "Key2".into(),
 						value: Some("Value2".into()),
-						children: vec![Value::new(Indent::Tabs(2), "Key3", "Value3")]
-					}]
-				}]
+						children: vec![value!(
+							Indent::Tabs { count: 2, delta: 1 },
+							"Key3",
+							"Value3"
+						)]
+					})]
+				})]
 			}
 		);
 	}
@@ -283,13 +405,17 @@ mod test {
 			Confindent::from_str(doubledent).unwrap(),
 			Confindent {
 				children: vec![
-					Value {
+					Line::Value(Value {
 						indent: Indent::Empty,
 						key: "Key1".into(),
 						value: Some("Value1".into()),
-						children: vec![Value::new(Indent::Tabs(1), "Key2", "Value2")]
-					},
-					Value::new(Indent::Empty, "Key3", "Value3")
+						children: vec![value!(
+							Indent::Tabs { count: 1, delta: 1 },
+							"Key2",
+							"Value2"
+						)]
+					}),
+					value!(Indent::Empty, "Key3", "Value3")
 				]
 			}
 		);
