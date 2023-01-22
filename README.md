@@ -1,11 +1,13 @@
 # Confindent
 
-<p align="center">
+<div align="center">
+
 [![Crates](https://flat.badgen.net/crates/v/confindent)][crate]
 [![Docs](https://docs.rs/confindent/badge.svg)](https://docs.rs/confindent)
 [![Downloads](https://flat.badgen.net/crates/d/confindent)][crate]
 ![GitHub workflows badge](https://github.com/gennyble/confindent/actions/workflows/actions.yml/badge.svg)
-</p>
+
+</div>
 
 [crate]: https://crates.io/crates/confindent
 
