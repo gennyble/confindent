@@ -32,7 +32,7 @@ fn main() {
 
 ## Quickstart!
 
-#### The format, briefly. [here's the very verbose spec](https://github.com/gennyble/confindent/blob/main/spec.md)
+#### The format, briefly.
 It's a kind of tree, key-value thing. Lines are key-value pairs, the value starting at the first
 space after the indent. You can add a child to a value by indenting it with spaces or tabs. Indent
 the same amount to add another child to that same value. Indent more than you did initially to add
