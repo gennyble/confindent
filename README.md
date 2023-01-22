@@ -1,50 +1,40 @@
 # Confindent
 
+<p align="center">
 [![Crates](https://flat.badgen.net/crates/v/confindent)][crate]
 [![Docs](https://docs.rs/confindent/badge.svg)](https://docs.rs/confindent)
 [![Downloads](https://flat.badgen.net/crates/d/confindent)][crate]
 ![GitHub workflows badge](https://github.com/gennyble/confindent/actions/workflows/actions.yml/badge.svg)
+</p>
 
 [crate]: https://crates.io/crates/confindent
 
-**Conf**iguration by **indent**ation. Read the [spec][spec] inspired by
-the format of the ssh client configuration commonly found on Linux machines
-at `~/.ssh/config`.
-
-[spec]: https://github.com/gennyble/confindent/blob/main/spec.md
+**Conf**iguration by **indent**ation. Like `~/.ssh/config`.
 
 ## Example, short and sweet
 ```rust
 use confindent::Confindent;
+use std::error::Error;
 
 fn main() {
-	let conf: Confindent = "Pet Dog\n\tName Brady\n\tAge 10".parse().unwrap();
-	let pet = conf.child("Pet").unwrap();
-	let name = pet.child_value("Name").unwrap();
-	let age: usize = pet.child_parse("Age").unwrap();
+	let conf: Confindent = "User gennyble\n\tEmail gen@nyble.dev\n\tID 256".parse().unwrap();
 
-	let word = match pet.value() {
-		Some("Dog") => "pupper",
-		Some("Cat") => "kitty",
-		_ => panic!(),
-	};
+	let user = conf.child("User").unwrap();
+	let username = user.value().unwrap();
+	let email = user.child_value("Email").unwrap();
+	let id: usize = user.child_parse("ID").unwrap();
 
-	if age > 9 {
-		println!("{}! {} is an old {}.", age, name, word);
-	} else {
-		println!("Only {}! {} is a good, young {}.", age, name, word);
-	}
+	println!("User {username}: {id} Contact: {email}");
 }
 ```
 
 ## Quickstart!
 
 #### The format, briefly. [here's the very verbose spec](https://github.com/gennyble/confindent/blob/main/spec.md)
-It's a kind of tree, key-value thing. Lines are key-value pairs, the value
-starting at the first space after the indent. You can add a child to a value
-by indenting it with spaces or tabs. Indent the same amount to add another
-child to that same value. Indent more than you did initially to add a
-grandchild. Don't mix spaces and tabs. Like this!
+It's a kind of tree, key-value thing. Lines are key-value pairs, the value starting at the first
+space after the indent. You can add a child to a value by indenting it with spaces or tabs. Indent
+the same amount to add another child to that same value. Indent more than you did initially to add
+a grandchild. Don't mix spaces and tabs. Like this!
 
 ```ignore
 Root this is the root
