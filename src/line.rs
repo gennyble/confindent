@@ -37,7 +37,7 @@ impl fmt::Display for Line {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Line::Blank(blnk) => write!(f, "{blnk}\n"),
-			Line::Comment { indent, comment } => write!(f, "{indent}{comment}\n"),
+			Line::Comment { indent, comment } => write!(f, "{indent}#{comment}\n"),
 			Line::Value(v) => v.fmt(f),
 		}
 	}

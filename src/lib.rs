@@ -42,7 +42,13 @@ mod indent;
 mod line;
 mod value;
 
-use std::{fs, path::Path, str::FromStr};
+use core::fmt;
+use std::{
+	fs::{self, File},
+	io::{self, Write},
+	path::Path,
+	str::FromStr,
+};
 
 pub use error::{ParseError, ParseErrorKind, ValueParseError};
 use indent::Indent;
@@ -71,11 +77,26 @@ impl Confindent {
 		Confindent::from_str(&string)
 	}
 
+	pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), io::Error> {
+		let mut file = File::create(path)?;
+		write!(file, "{self}")
+	}
+
 	/// Get a child with the provided key.
 	///
 	/// See [Value::child] for more.
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
 		for child in self.values() {
+			if child.key == key.as_ref() {
+				return Some(child);
+			}
+		}
+
+		None
+	}
+
+	pub fn child_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut Value> {
+		for child in self.values_mut() {
 			if child.key == key.as_ref() {
 				return Some(child);
 			}
@@ -183,7 +204,7 @@ impl Confindent {
 				}
 			},
 			Indent::Spaces { count: spaces, .. } => loop {
-				match curr.values().last() {
+				match curr.values_mut().last() {
 					None => {
 						curr.children.push(line);
 						break;
@@ -214,21 +235,20 @@ impl Confindent {
 
 	/// Push the provided [Line] to the last, deepest node
 	fn push_last(&mut self, line: Line) {
-		let mut curr = match self.values_mut().last() {
-			None => {
-				self.children.push(line);
-				return;
-			}
-			Some(ln) => ln,
-		};
+		if self.values().count() == 0 {
+			self.children.push(line);
+			return;
+		}
 
+		let mut curr = self.values_mut().last().unwrap();
 		loop {
 			match curr.values_mut().last() {
 				None => {
-					self.children.push(line);
+					curr.children.push(line);
 					return;
 				}
-				Some(last) => curr = last,
+				// If we use the value from Some here, we got a double-mutable reference error...
+				Some(_) => curr = curr.values_mut().last().unwrap(),
 			}
 		}
 	}
@@ -244,8 +264,11 @@ impl FromStr for Confindent {
 			|e: ParseErrorKind, ln: usize| -> ParseError { ParseError { line: ln, kind: e } };
 
 		for (line_number, line) in lines {
+			println!("Line: '{line}'");
 			if blank_line(line) {
+				println!("Blank");
 				ret.push_last(Line::Blank(line.to_owned()));
+				println!("'{ret}'");
 				continue;
 			}
 
@@ -275,6 +298,15 @@ fn blank_line(s: &str) -> bool {
 		}
 	}
 	true
+}
+
+impl fmt::Display for Confindent {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		for child in &self.children {
+			child.fmt(f)?;
+		}
+		Ok(())
+	}
 }
 
 pub struct ValueIterator<'a> {
@@ -319,7 +351,7 @@ mod test {
 
 	macro_rules! value {
 		($indent:expr, $key:expr, $value:expr) => {
-			Line::Value(Value::new($indent, $key, $value))
+			Line::Value(Value::from_parts($indent, $key, $value))
 		};
 	}
 
@@ -419,6 +451,26 @@ mod test {
 				]
 			}
 		);
+	}
+
+	#[test]
+	fn roundtrip() {
+		let raw = r###"# Top of the file!
+Root value
+	Key v
+	
+	# Comment
+	Key otherV
+		ChildKey nested again!
+	
+# Comment
+MoreRoot value
+"###;
+
+		let conf: Confindent = raw.parse().unwrap();
+		let string = conf.to_string();
+
+		assert_eq!(raw, string)
 	}
 }
 

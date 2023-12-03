@@ -18,7 +18,11 @@ pub struct Value {
 
 impl Value {
 	#[allow(dead_code)] //used heavily in tests
-	pub(crate) fn new<K: Into<String>, V: Into<String>>(indent: Indent, key: K, value: V) -> Self {
+	pub(crate) fn from_parts<K: Into<String>, V: Into<String>>(
+		indent: Indent,
+		key: K,
+		value: V,
+	) -> Self {
 		let value = value.into();
 
 		Self {
@@ -29,12 +33,23 @@ impl Value {
 		}
 	}
 
+	pub fn new<K: Into<String>, V: fmt::Display>(key: K, value: Option<V>) -> Self {
+		Self {
+			indent: Indent::Empty,
+			key: key.into(),
+			value: value.map(|v| v.to_string()),
+			children: vec![],
+		}
+	}
+
+	//TODO: docs
 	pub fn values(&self) -> ValueIterator {
 		ValueIterator {
 			inner: self.children.iter(),
 		}
 	}
 
+	//TODO: docs
 	pub fn values_mut(&mut self) -> ValueIteratorMut {
 		ValueIteratorMut {
 			inner: self.children.iter_mut(),
@@ -107,12 +122,16 @@ impl Value {
 	/// assert_eq!(grandchild.value(), Some("value"));
 	/// ```
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
-		for child in self.values() {
-			if child.key == key.as_ref() {
-				return Some(child);
-			}
-		}
-		None
+		self.values()
+			.filter(|value| value.key == key.as_ref())
+			.next()
+	}
+
+	//TODO: docs
+	pub fn child_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut Value> {
+		self.values_mut()
+			.filter(|value| value.key == key.as_ref())
+			.next()
 	}
 
 	/// Get every child that is a direct descendant of this value with the provided name.
@@ -133,6 +152,13 @@ impl Value {
 	/// ```
 	pub fn children<S: AsRef<str>>(&self, key: S) -> Vec<&Value> {
 		self.values()
+			.filter(|value| value.key == key.as_ref())
+			.collect()
+	}
+
+	//TODO: docs
+	pub fn children_mut<S: AsRef<str>>(&mut self, key: S) -> Vec<&mut Value> {
+		self.values_mut()
 			.filter(|value| value.key == key.as_ref())
 			.collect()
 	}
@@ -226,6 +252,11 @@ impl Value {
 		self.value.as_deref()
 	}
 
+	//TODO: docs
+	pub fn value_mut(&mut self) -> Option<&mut String> {
+		self.value.as_mut()
+	}
+
 	/// Gets, and clones, the contained value.
 	///
 	/// # Returns
@@ -287,6 +318,12 @@ impl Value {
 			.map(|child| child.parse().map_err(|e| ValueParseError::ParseError(e)))
 			.unwrap_or(Err(ValueParseError::NoValue))
 	}
+
+	pub fn parse_opt<T: FromStr>(&self) -> Option<Result<T, ValueParseError<T>>> {
+		self.value
+			.as_ref()
+			.map(|child| child.parse().map_err(|e| ValueParseError::ParseError(e)))
+	}
 }
 
 impl fmt::Display for Value {
@@ -338,11 +375,11 @@ mod test {
 
 		assert_eq!(
 			Value::from_str(noindent).unwrap(),
-			Value::new(Indent::Empty, "Key", "Value")
+			Value::from_parts(Indent::Empty, "Key", "Value")
 		);
 		assert_eq!(
 			Value::from_str(noindent_novalue).unwrap(),
-			Value::new(Indent::Empty, "Key", "")
+			Value::from_parts(Indent::Empty, "Key", "")
 		);
 
 		let indent = "\tKey Value";
@@ -350,11 +387,11 @@ mod test {
 
 		assert_eq!(
 			Value::from_str(indent).unwrap(),
-			Value::new(Indent::Tabs { count: 1, delta: 1 }, "Key", "Value")
+			Value::from_parts(Indent::Tabs { count: 1, delta: 1 }, "Key", "Value")
 		);
 		assert_eq!(
 			Value::from_str(indent_novalue).unwrap(),
-			Value::new(Indent::Tabs { count: 1, delta: 1 }, "Key", "")
+			Value::from_parts(Indent::Tabs { count: 1, delta: 1 }, "Key", "")
 		);
 
 		let mixed = " \tKey Value";
@@ -366,7 +403,7 @@ mod test {
 
 	#[test]
 	fn no_indent_only_key() {
-		let value = Value::new(Indent::Empty, "Key", "");
+		let value = Value::from_parts(Indent::Empty, "Key", "");
 		let expected = "Key\n";
 
 		assert_eq!(value.to_string(), expected)
@@ -374,7 +411,7 @@ mod test {
 
 	#[test]
 	fn no_indent_with_value() {
-		let value = Value::new(Indent::Empty, "Key", "Value");
+		let value = Value::from_parts(Indent::Empty, "Key", "Value");
 		let expected = "Key Value\n";
 
 		assert_eq!(value.to_string(), expected)
@@ -386,7 +423,7 @@ mod test {
 			indent: Indent::Empty,
 			key: "Key".into(),
 			value: Some("Value".into()),
-			children: vec![Line::Value(Value::new(
+			children: vec![Line::Value(Value::from_parts(
 				Indent::Tabs { count: 1, delta: 1 },
 				"ChildKey",
 				"Value",
