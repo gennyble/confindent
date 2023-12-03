@@ -251,11 +251,8 @@ impl FromStr for Confindent {
 			|e: ParseErrorKind, ln: usize| -> ParseError { ParseError { line: ln, kind: e } };
 
 		for (line_number, line) in lines {
-			println!("Line: '{line}'");
 			if blank_line(line) {
-				println!("Blank");
 				ret.push_last(Line::Blank(line.to_owned()));
-				println!("'{ret}'");
 				continue;
 			}
 
