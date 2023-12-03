@@ -36,8 +36,8 @@ impl From<(Indent, &str)> for Line {
 impl fmt::Display for Line {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
-			Line::Blank(blnk) => write!(f, "{blnk}\n"),
-			Line::Comment { indent, comment } => write!(f, "{indent}#{comment}\n"),
+			Line::Blank(blnk) => writeln!(f, "{blnk}"),
+			Line::Comment { indent, comment } => writeln!(f, "{indent}#{comment}"),
 			Line::Value(v) => v.fmt(f),
 		}
 	}

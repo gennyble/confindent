@@ -122,16 +122,12 @@ impl Value {
 	/// assert_eq!(grandchild.value(), Some("value"));
 	/// ```
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
-		self.values()
-			.filter(|value| value.key == key.as_ref())
-			.next()
+		self.values().find(|value| value.key == key.as_ref())
 	}
 
 	//TODO: docs
 	pub fn child_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut Value> {
-		self.values_mut()
-			.filter(|value| value.key == key.as_ref())
-			.next()
+		self.values_mut().find(|value| value.key == key.as_ref())
 	}
 
 	/// Get every child that is a direct descendant of this value with the provided name.
@@ -182,9 +178,7 @@ impl Value {
 	/// assert!(host.has_child("UseCompression"));
 	/// ```
 	pub fn has_child<S: AsRef<str>>(&self, key: S) -> bool {
-		self.values()
-			.find(|value| value.key == key.as_ref())
-			.is_some()
+		self.values().any(|value| value.key == key.as_ref())
 	}
 
 	/// Get the value of the first child with the provided key.
@@ -206,7 +200,7 @@ impl Value {
 	/// assert_eq!(section.child_value("grandchild"), Some("grandvalue"));
 	/// ```
 	pub fn child_value<S: AsRef<str>>(&self, key: S) -> Option<&str> {
-		self.child(key).map(|child| child.value()).flatten()
+		self.child(key).and_then(|child| child.value())
 	}
 
 	/// Get the value of the first child with the provided key.
@@ -336,9 +330,9 @@ impl fmt::Display for Value {
 		} = self;
 
 		if let Some(value) = value {
-			write!(f, "{indent}{key} {value}\n")?;
+			writeln!(f, "{indent}{key} {value}")?;
 		} else {
-			write!(f, "{indent}{key}\n")?;
+			writeln!(f, "{indent}{key}")?;
 		}
 
 		for child in children {

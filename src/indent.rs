@@ -38,7 +38,7 @@ impl Indent {
 					count: other_count, ..
 				} => {
 					let diff = *other_count as isize - *count as isize;
-					*delta = diff.abs() as usize;
+					*delta = diff.unsigned_abs();
 					Ok(())
 				}
 				Indent::Spaces { .. } => Err(ParseErrorKind::SpacesWithTabs),
@@ -53,7 +53,7 @@ impl Indent {
 					count: other_count, ..
 				} => {
 					let diff = *other_count as isize - *count as isize;
-					*delta = diff.abs() as usize;
+					*delta = diff.unsigned_abs();
 					Ok(())
 				}
 			},
@@ -140,11 +140,11 @@ impl fmt::Display for Indent {
 		match self {
 			Indent::Empty => Ok(()),
 			Indent::Spaces { count, .. } => {
-				let str = std::iter::repeat(' ').take(*count).collect::<String>();
+				let str = " ".repeat(*count);
 				write!(f, "{str}")
 			}
 			Indent::Tabs { count, .. } => {
-				let str = std::iter::repeat('\t').take(*count).collect::<String>();
+				let str = "\t".repeat(*count);
 				write!(f, "{str}")
 			}
 		}

@@ -1,3 +1,6 @@
+// clippy leave me alone
+#![allow(clippy::tabs_in_doc_comments)]
+
 //! A simple configuration reader.
 //!
 //! This crate tries to make it easy to add a configuration file to your project.
@@ -25,16 +28,14 @@
 //! use confindent::Confindent;
 //! use std::error::Error;
 //!
-//! fn main() {
-//! 	let conf: Confindent = "User gennyble\n\tEmail gen@nyble.dev\n\tID 256".parse().unwrap();
+//! let conf: Confindent = "User gennyble\n\tEmail gen@nyble.dev\n\tID 256".parse().unwrap();
 //!
-//! 	let user = conf.child("User").unwrap();
-//! 	let username = user.value().unwrap();
-//! 	let email = user.child_value("Email").unwrap();
-//! 	let id: usize = user.child_parse("ID").unwrap();
+//! let user = conf.child("User").unwrap();
+//! let username = user.value().unwrap();
+//! let email = user.child_value("Email").unwrap();
+//! let id: usize = user.child_parse("ID").unwrap();
 //!
-//! 	println!("User {username}: {id} Contact: {email}");
-//! }
+//!	println!("User {username}: {id} Contact: {email}");
 //! ```
 
 mod error;
@@ -86,23 +87,11 @@ impl Confindent {
 	///
 	/// See [Value::child] for more.
 	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
-		for child in self.values() {
-			if child.key == key.as_ref() {
-				return Some(child);
-			}
-		}
-
-		None
+		self.values().find(|value| value.key == key.as_ref())
 	}
 
 	pub fn child_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut Value> {
-		for child in self.values_mut() {
-			if child.key == key.as_ref() {
-				return Some(child);
-			}
-		}
-
-		None
+		self.values_mut().find(|value| value.key == key.as_ref())
 	}
 
 	/// Get all of the direct children with the provided key.
@@ -118,16 +107,14 @@ impl Confindent {
 	///
 	/// See [Value::has_child] for more.
 	pub fn has_child<S: AsRef<str>>(&self, key: S) -> bool {
-		self.values()
-			.find(|value| value.key == key.as_ref())
-			.is_some()
+		self.values().any(|value| value.key == key.as_ref())
 	}
 
 	/// Get the value of a child with the provided key.
 	///
 	/// See [Value::child_value] for more.
 	pub fn child_value<S: AsRef<str>>(&self, key: S) -> Option<&str> {
-		self.child(key).map(|child| child.value()).flatten()
+		self.child(key).and_then(|child| child.value())
 	}
 
 	/// Get the value of a child and clone it.
