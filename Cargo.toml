@@ -2,7 +2,7 @@
 name = "confindent"
 version = "3.0.0"
 description = "⚙️ A configuration format based on indentation"
-authors = ["Genny <gen@nyble.dev>"]
+authors = ["gennyble <gen@nyble.dev>"]
 repository = "https://github.com/gennyble/confindent"
 readme = "README.md"
 keywords = ["config", "indentation"]

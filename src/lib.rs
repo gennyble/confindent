@@ -83,6 +83,44 @@ impl Confindent {
 		write!(file, "{self}")
 	}
 
+	pub fn get<S: AsRef<str>>(&self, path: S) -> Option<&str> {
+		let path = path.as_ref();
+		let mut splits = path.split('/');
+
+		let mut current = match splits.next().and_then(|key| self.child(key)) {
+			None => return None,
+			Some(child) => child,
+		};
+
+		for key in splits {
+			match current.child(key) {
+				None => return None,
+				Some(child) => current = child,
+			}
+		}
+
+		current.value()
+	}
+
+	pub fn get_delim<S: AsRef<str>>(&self, path: S, delimeter: char) -> Option<&str> {
+		let path = path.as_ref();
+		let mut splits = path.split(delimeter);
+
+		let mut current = match splits.next().and_then(|key| self.child(key)) {
+			None => return None,
+			Some(child) => child,
+		};
+
+		for key in splits {
+			match current.child(key) {
+				None => return None,
+				Some(child) => current = child,
+			}
+		}
+
+		current.value()
+	}
+
 	/// Get a child with the provided key.
 	///
 	/// See [Value::child] for more.
