@@ -46,6 +46,20 @@ impl Value {
 		self.get_delim(path, '/')
 	}
 
+	pub fn get_parse<S: AsRef<str>, T: FromStr>(&self, path: S) -> Result<T, ValueParseError<T>> {
+		self.get_delim_parse(path, '/')
+	}
+
+	pub fn get_delim_parse<S: AsRef<str>, T: FromStr>(
+		&self,
+		path: S,
+		delimeter: char,
+	) -> Result<T, ValueParseError<T>> {
+		self.get_delim(path, delimeter)
+			.map(|child| child.parse().map_err(|e| ValueParseError::ParseError(e)))
+			.unwrap_or(Err(ValueParseError::NoValue))
+	}
+
 	pub fn get_delim<S: AsRef<str>>(&self, path: S, delimeter: char) -> Option<&str> {
 		let path = path.as_ref();
 		let mut splits = path.split(delimeter);
