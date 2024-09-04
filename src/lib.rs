@@ -185,7 +185,7 @@ impl Confindent {
 	fn push(&mut self, mut line: Line) -> Result<(), ParseErrorKind> {
 		let indent = match &mut line {
 			Line::Blank(_) => {
-				self.push_last(line);
+				self.push_last_parent(line);
 				return Ok(());
 			}
 			Line::Value(v) => &mut v.indent,
@@ -276,6 +276,37 @@ impl Confindent {
 			}
 		}
 	}
+
+	/// Push the provided [Line] to the last [Value] with at least one child
+	fn push_last_parent(&mut self, line: Line) {
+		match self.values_mut().last() {
+			None => {
+				// No values to explore, push to root
+				self.children.push(line);
+				return;
+			}
+			Some(mut curr) => loop {
+				// There is at least one child. If we hit this, this is one above the root
+				if curr.values().last().is_none() {
+					self.children.push(line);
+					return;
+				}
+
+				// But if it has children, we check there are grand childrne.
+				if let Some(_) = curr.values_mut().last() {
+					if curr.last_value_has_grandchildren() {
+						curr.children.push(line);
+						return;
+					} else {
+						// If we don't do this unwrap here and use the value
+						// from the if...let we get an error about mutable
+						// values
+						curr = curr.values_mut().last().unwrap();
+					}
+				}
+			},
+		}
+	}
 }
 
 impl FromStr for Confindent {
@@ -289,7 +320,7 @@ impl FromStr for Confindent {
 
 		for (line_number, line) in lines {
 			if blank_line(line) {
-				ret.push_last(Line::Blank(line.to_owned()));
+				ret.push_last_parent(Line::Blank(line.to_owned()));
 				continue;
 			}
 

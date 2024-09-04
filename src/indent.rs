@@ -22,6 +22,13 @@ pub enum Indent {
 }
 
 impl Indent {
+	/// An indent of exactly 1 tab
+	pub const TAB: Indent = Indent::Tabs { count: 1, delta: 1 };
+	/// An indent of exactly 2 spaces
+	pub const SPACES_2: Indent = Indent::Spaces { count: 2, delta: 2 };
+	/// An indent of exactly 4 spaces
+	pub const SPACES_4: Indent = Indent::Spaces { count: 4, delta: 4 };
+
 	/// Fill in this indent's delta using `other` as a reference.
 	pub(crate) fn delta_from(&mut self, other: &Indent) -> Result<(), ParseErrorKind> {
 		match self {
@@ -56,6 +63,20 @@ impl Indent {
 					*delta = diff.unsigned_abs();
 					Ok(())
 				}
+			},
+		}
+	}
+
+	pub fn indent_or_default(&self, default: Indent) -> Self {
+		match *self {
+			Self::Empty => default,
+			Self::Spaces { count, delta } => Self::Spaces {
+				count: count + delta,
+				delta,
+			},
+			Self::Tabs { count, delta } => Self::Tabs {
+				count: count + delta,
+				delta,
 			},
 		}
 	}

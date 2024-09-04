@@ -9,6 +9,16 @@ pub enum Line {
 	Blank(String),
 }
 
+impl Line {
+	pub fn is_blank(&self) -> bool {
+		if let Self::Blank(_) = self {
+			true
+		} else {
+			false
+		}
+	}
+}
+
 impl From<Value> for Line {
 	fn from(value: Value) -> Self {
 		Line::Value(value)

@@ -13,7 +13,7 @@ pub struct Value {
 	pub(crate) indent: Indent,
 	pub(crate) key: String,
 	pub(crate) value: Option<String>,
-	pub(crate) children: Vec<Line>,
+	pub children: Vec<Line>,
 }
 
 impl Value {
@@ -142,6 +142,58 @@ impl Value {
 	pub(crate) fn from_str(line: &str) -> Result<Self, ParseErrorKind> {
 		let (white, expr) = Self::split_whitespace(line)?;
 		Ok(Value::from_indent_str(white, expr))
+	}
+
+	fn find_child_indent(&self) -> Option<Indent> {
+		let first_child = self.children.iter().find(|l| !l.is_blank());
+
+		match first_child {
+			None => {
+				if let Indent::Empty = self.indent {
+					None
+				} else {
+					// We check if we're empty; we shouldn't hit the default here
+					Some(self.indent.indent_or_default(Indent::TAB))
+				}
+			}
+			Some(Line::Comment { indent, .. }) => Some(*indent),
+			Some(Line::Value(val)) => Some(val.indent),
+			Some(Line::Blank(_)) => unreachable!(),
+		}
+	}
+
+	fn last_non_blank_child(&self) -> usize {
+		self.children
+			.iter()
+			.enumerate()
+			.rev()
+			.find(|l| !l.1.is_blank())
+			.map(|(idx, _)| idx + 1)
+			.unwrap_or(0)
+	}
+
+	pub fn push_value<V: Into<Value>>(&mut self, value: V) {
+		//FIXME: gen- Should not just pick tabs here. Maybe some configurable global?
+		let indent = self.find_child_indent().unwrap_or(Indent::TAB);
+		let idx = self.last_non_blank_child();
+
+		let mut val = value.into();
+		val.indent = indent;
+		self.children.insert(idx, Line::Value(val));
+	}
+
+	pub fn push_comment<C: Into<String>>(&mut self, comment: C) {
+		//FIXME: gen- Should not just pick tabs here. Maybe some configurable global?
+		let indent = self.find_child_indent().unwrap_or(Indent::TAB);
+		let idx = self.last_non_blank_child();
+
+		self.children.insert(
+			idx,
+			Line::Comment {
+				indent,
+				comment: comment.into(),
+			},
+		);
 	}
 
 	/// Get the first child with the provided key
@@ -355,6 +407,13 @@ impl Value {
 			.as_ref()
 			.map(|child| child.parse().map_err(|e| ValueParseError::ParseError(e)))
 	}
+
+	pub(crate) fn last_value_has_grandchildren(&self) -> bool {
+		match self.values().last() {
+			None => false,
+			Some(child) => child.values().last().is_some(),
+		}
+	}
 }
 
 impl fmt::Display for Value {
@@ -377,6 +436,17 @@ impl fmt::Display for Value {
 		}
 
 		Ok(())
+	}
+}
+
+impl<K: fmt::Display, V: fmt::Display> From<(K, V)> for Value {
+	fn from(value: (K, V)) -> Self {
+		Value {
+			indent: Indent::Empty,
+			key: value.0.to_string(),
+			value: Some(value.1.to_string()),
+			children: vec![],
+		}
 	}
 }
 
