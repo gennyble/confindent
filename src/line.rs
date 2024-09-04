@@ -1,10 +1,10 @@
 use core::fmt;
 
-use crate::{indent::Indent, Value};
+use crate::{indent::Indent, Entry};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Line {
-	Value(Value),
+	Entry(Entry),
 	Comment { indent: Indent, comment: String },
 	Blank(String),
 }
@@ -19,9 +19,9 @@ impl Line {
 	}
 }
 
-impl From<Value> for Line {
-	fn from(value: Value) -> Self {
-		Line::Value(value)
+impl From<Entry> for Line {
+	fn from(entry: Entry) -> Self {
+		Line::Entry(entry)
 	}
 }
 
@@ -48,7 +48,7 @@ impl fmt::Display for Line {
 		match self {
 			Line::Blank(blnk) => writeln!(f, "{blnk}"),
 			Line::Comment { indent, comment } => writeln!(f, "{indent}#{comment}"),
-			Line::Value(v) => v.fmt(f),
+			Line::Entry(v) => v.fmt(f),
 		}
 	}
 }

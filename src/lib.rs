@@ -38,10 +38,11 @@
 //!	println!("User {username}: {id} Contact: {email}");
 //! ```
 
+mod entry;
 mod error;
 mod indent;
 mod line;
-mod value;
+mod node;
 
 use core::fmt;
 use std::{
@@ -51,10 +52,11 @@ use std::{
 	str::FromStr,
 };
 
+pub use entry::Entry;
 pub use error::{ParseError, ParseErrorKind, ValueParseError};
 use indent::Indent;
 use line::Line;
-pub use value::Value;
+pub use node::Node;
 
 /// A parsed configuration file. This struct holds the values with no indentation.
 #[derive(Debug, PartialEq)]
@@ -83,112 +85,13 @@ impl Confindent {
 		write!(file, "{self}")
 	}
 
-	pub fn get<S: AsRef<str>>(&self, path: S) -> Option<&str> {
-		self.get_delim(path, '/')
-	}
-
-	pub fn get_parse<S: AsRef<str>, T: FromStr>(&self, path: S) -> Result<T, ValueParseError<T>> {
-		self.get_delim_parse(path, '/')
-	}
-
-	pub fn get_delim_parse<S: AsRef<str>, T: FromStr>(
-		&self,
-		path: S,
-		delimeter: char,
-	) -> Result<T, ValueParseError<T>> {
-		self.get_delim(path, delimeter)
-			.map(|child| child.parse().map_err(|e| ValueParseError::ParseError(e)))
-			.unwrap_or(Err(ValueParseError::NoValue))
-	}
-
-	pub fn get_delim<S: AsRef<str>>(&self, path: S, delimeter: char) -> Option<&str> {
-		let path = path.as_ref();
-		let mut splits = path.split(delimeter);
-
-		let mut current = match splits.next().and_then(|key| self.child(key)) {
-			None => return None,
-			Some(child) => child,
-		};
-
-		for key in splits {
-			match current.child(key) {
-				None => return None,
-				Some(child) => current = child,
-			}
-		}
-
-		current.value()
-	}
-
-	/// Get a child with the provided key.
-	///
-	/// See [Value::child] for more.
-	pub fn child<S: AsRef<str>>(&self, key: S) -> Option<&Value> {
-		self.values().find(|value| value.key == key.as_ref())
-	}
-
-	pub fn child_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut Value> {
-		self.values_mut().find(|value| value.key == key.as_ref())
-	}
-
-	/// Get all of the direct children with the provided key.
-	///
-	/// See [Value::children] for more.
-	pub fn children<S: AsRef<str>>(&self, key: S) -> Vec<&Value> {
-		self.values()
-			.filter(|value| value.key == key.as_ref())
-			.collect()
-	}
-
-	/// Check if there are any direct children with the provided key.
-	///
-	/// See [Value::has_child] for more.
-	pub fn has_child<S: AsRef<str>>(&self, key: S) -> bool {
-		self.values().any(|value| value.key == key.as_ref())
-	}
-
-	/// Get the value of a child with the provided key.
-	///
-	/// See [Value::child_value] for more.
-	pub fn child_value<S: AsRef<str>>(&self, key: S) -> Option<&str> {
-		self.child(key).and_then(|child| child.value())
-	}
-
-	/// Get the value of a child and clone it.
-	///
-	/// See [Value::child_owned] for more.
-	pub fn child_owned<S: AsRef<str>>(&self, key: S) -> Option<String> {
-		self.child_value(key).map(<_>::to_owned)
-	}
-
-	/// Pase the value of a child into your desired type.
-	///
-	/// Please, see [Value::child_parse] for more.
-	pub fn child_parse<S: AsRef<str>, T: FromStr>(&self, key: S) -> Result<T, ValueParseError<T>> {
-		self.child(key)
-			.map(|child| child.parse())
-			.unwrap_or(Err(ValueParseError::NoValue))
-	}
-
-	pub fn values(&self) -> ValueIterator {
-		ValueIterator {
-			inner: self.children.iter(),
-		}
-	}
-
-	pub fn values_mut(&mut self) -> ValueIteratorMut {
-		ValueIteratorMut {
-			inner: self.children.iter_mut(),
-		}
-	}
-
 	fn push(&mut self, mut line: Line) -> Result<(), ParseErrorKind> {
 		let indent = match &mut line {
 			Line::Blank(_) => {
 				self.push_last_parent(line);
 				return Ok(());
 			}
-			Line::Value(v) => &mut v.indent,
+			Line::Entry(v) => &mut v.indent,
 			Line::Comment { ref mut indent, .. } => indent,
 		};
 
@@ -200,10 +103,10 @@ impl Confindent {
 			return Err(ParseErrorKind::StartedIndented);
 		}
 
-		let mut curr = self.values_mut().last().unwrap();
+		let mut curr = self.entries_mut().last().unwrap();
 		match indent {
 			Indent::Tabs { count: tabsize, .. } => loop {
-				match curr.values_mut().last() {
+				match curr.entries_mut().last() {
 					None => {
 						indent.delta_from(&curr.indent)?;
 						curr.children.push(line);
@@ -221,14 +124,14 @@ impl Confindent {
 								curr.children.push(line);
 								break;
 							} else {
-								curr = curr.values_mut().last().unwrap();
+								curr = curr.entries_mut().last().unwrap();
 							}
 						}
 					},
 				}
 			},
 			Indent::Spaces { count: spaces, .. } => loop {
-				match curr.values_mut().last() {
+				match curr.entries_mut().last() {
 					None => {
 						curr.children.push(line);
 						break;
@@ -245,7 +148,7 @@ impl Confindent {
 								curr.children.push(line);
 								break;
 							} else {
-								curr = curr.values_mut().last().unwrap();
+								curr = curr.entries_mut().last().unwrap();
 							}
 						}
 					},
@@ -259,27 +162,27 @@ impl Confindent {
 
 	/// Push the provided [Line] to the last, deepest node
 	fn push_last(&mut self, line: Line) {
-		if self.values().count() == 0 {
+		if self.entries().count() == 0 {
 			self.children.push(line);
 			return;
 		}
 
-		let mut curr = self.values_mut().last().unwrap();
+		let mut curr = self.entries_mut().last().unwrap();
 		loop {
-			match curr.values_mut().last() {
+			match curr.entries_mut().last() {
 				None => {
 					curr.children.push(line);
 					return;
 				}
 				// If we use the value from Some here, we got a double-mutable reference error...
-				Some(_) => curr = curr.values_mut().last().unwrap(),
+				Some(_) => curr = curr.entries_mut().last().unwrap(),
 			}
 		}
 	}
 
 	/// Push the provided [Line] to the last [Value] with at least one child
 	fn push_last_parent(&mut self, line: Line) {
-		match self.values_mut().last() {
+		match self.entries_mut().last() {
 			None => {
 				// No values to explore, push to root
 				self.children.push(line);
@@ -287,25 +190,59 @@ impl Confindent {
 			}
 			Some(mut curr) => loop {
 				// There is at least one child. If we hit this, this is one above the root
-				if curr.values().last().is_none() {
+				if curr.entries().last().is_none() {
 					self.children.push(line);
 					return;
 				}
 
 				// But if it has children, we check there are grand childrne.
-				if let Some(_) = curr.values_mut().last() {
-					if curr.last_value_has_grandchildren() {
+				if let Some(_) = curr.entries_mut().last() {
+					if !curr.last_value_has_grandchildren() {
 						curr.children.push(line);
 						return;
 					} else {
 						// If we don't do this unwrap here and use the value
 						// from the if...let we get an error about mutable
 						// values
-						curr = curr.values_mut().last().unwrap();
+						curr = curr.entries_mut().last().unwrap();
 					}
 				}
 			},
 		}
+	}
+}
+
+impl Node for Confindent {
+	fn lines(&self) -> &[Line] {
+		&self.children
+	}
+
+	fn lines_mut(&mut self) -> &mut [Line] {
+		&mut self.children
+	}
+
+	fn indent(&self) -> Indent {
+		Indent::Empty
+	}
+
+	fn entries(&self) -> EntryIterator {
+		EntryIterator {
+			inner: self.children.iter(),
+		}
+	}
+
+	fn entries_mut(&mut self) -> EntryIteratorMut {
+		EntryIteratorMut {
+			inner: self.children.iter_mut(),
+		}
+	}
+
+	fn push_line(&mut self, line: Line) {
+		self.children.push(line);
+	}
+
+	fn insert_line(&mut self, idx: usize, line: Line) {
+		self.children.insert(idx, line);
 	}
 }
 
@@ -325,7 +262,7 @@ impl FromStr for Confindent {
 			}
 
 			let (indent, other) =
-				Value::split_whitespace(line).map_err(|e| add_ln(e, line_number))?;
+				Entry::split_whitespace(line).map_err(|e| add_ln(e, line_number))?;
 
 			let line = if let Some(comment) = other.strip_prefix('#') {
 				Line::Comment {
@@ -333,7 +270,7 @@ impl FromStr for Confindent {
 					comment: comment.into(),
 				}
 			} else {
-				Line::Value(Value::from_str(line).map_err(|e| add_ln(e, line_number))?)
+				Line::Entry(Entry::from_str(line).map_err(|e| add_ln(e, line_number))?)
 			};
 
 			ret.push(line).map_err(|e| add_ln(e, line_number))?;
@@ -361,36 +298,36 @@ impl fmt::Display for Confindent {
 	}
 }
 
-pub struct ValueIterator<'a> {
+pub struct EntryIterator<'a> {
 	inner: std::slice::Iter<'a, Line>,
 }
 
-impl<'a> Iterator for ValueIterator<'a> {
-	type Item = &'a Value;
+impl<'a> Iterator for EntryIterator<'a> {
+	type Item = &'a Entry;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		loop {
 			match self.inner.next() {
 				None => break None,
-				Some(Line::Value(v)) => break Some(v),
+				Some(Line::Entry(v)) => break Some(v),
 				_ => continue,
 			}
 		}
 	}
 }
 
-pub struct ValueIteratorMut<'a> {
+pub struct EntryIteratorMut<'a> {
 	inner: std::slice::IterMut<'a, Line>,
 }
 
-impl<'a> Iterator for ValueIteratorMut<'a> {
-	type Item = &'a mut Value;
+impl<'a> Iterator for EntryIteratorMut<'a> {
+	type Item = &'a mut Entry;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		loop {
 			match self.inner.next() {
 				None => break None,
-				Some(Line::Value(v)) => break Some(v),
+				Some(Line::Entry(v)) => break Some(v),
 				_ => continue,
 			}
 		}
@@ -403,7 +340,7 @@ mod test {
 
 	macro_rules! value {
 		($indent:expr, $key:expr, $value:expr) => {
-			Line::Value(Value::from_parts($indent, $key, $value))
+			Line::Entry(Entry::from_parts($indent, $key, $value))
 		};
 	}
 
@@ -441,7 +378,7 @@ mod test {
 		assert_eq!(
 			Confindent::from_str(doubledent).unwrap(),
 			Confindent {
-				children: vec![Line::Value(Value {
+				children: vec![Line::Entry(Entry {
 					indent: Indent::Empty,
 					key: "Key1".into(),
 					value: Some("Value1".into()),
@@ -462,11 +399,11 @@ mod test {
 		assert_eq!(
 			Confindent::from_str(doubledent).unwrap(),
 			Confindent {
-				children: vec![Line::Value(Value {
+				children: vec![Line::Entry(Entry {
 					indent: Indent::Empty,
 					key: "Key1".into(),
 					value: Some("Value1".into()),
-					children: vec![Line::Value(Value {
+					children: vec![Line::Entry(Entry {
 						indent: Indent::Tabs { count: 1, delta: 1 },
 						key: "Key2".into(),
 						value: Some("Value2".into()),
@@ -489,7 +426,7 @@ mod test {
 			Confindent::from_str(doubledent).unwrap(),
 			Confindent {
 				children: vec![
-					Line::Value(Value {
+					Line::Entry(Entry {
 						indent: Indent::Empty,
 						key: "Key1".into(),
 						value: Some("Value1".into()),

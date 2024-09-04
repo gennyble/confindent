@@ -1,4 +1,4 @@
-use confindent::Confindent;
+use confindent::{Confindent, Node};
 
 fn main() {
 	let conf = Confindent::from_file("examples/songinfo.conf").unwrap();

@@ -1,17 +1,12 @@
 use std::str::FromStr;
 
-use confindent::Confindent;
+use confindent::{Confindent, Node};
 
 fn main() {
 	let mut conf = Confindent::from_str(&INITIAL).unwrap();
 	let child = conf.child_mut("Key").unwrap();
 
-	for ch in &child.children {
-		println!("{ch:?}");
-	}
-
-	child.push_comment("This is automatically written");
-	child.push_value(("Child2", 2048));
+	child.push_entry(("Child2", 2048));
 
 	let out = conf.to_string();
 
@@ -20,7 +15,5 @@ fn main() {
 
 #[rustfmt::skip]
 const INITIAL: &'static str =
-r#"Key value
-	Child value
-
-Key2 value"#;
+r#"Entry
+	Link /relative/link"#;
