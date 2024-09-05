@@ -12,3 +12,7 @@ edition = "2021"
 
 [[example]]
 name = "read"
+
+[features]
+macros = []
+default = ["macros"]

@@ -42,6 +42,8 @@ mod entry;
 mod error;
 mod indent;
 mod line;
+#[cfg(feature = "macros")]
+mod macros;
 mod node;
 
 use core::fmt;
