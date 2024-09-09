@@ -43,7 +43,7 @@ mod error;
 mod indent;
 mod line;
 #[cfg(feature = "macros")]
-mod macros;
+pub mod macros;
 mod node;
 
 use core::fmt;
