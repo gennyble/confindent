@@ -308,6 +308,38 @@ impl Value {
 		self.value.clone()
 	}
 
+	/// Gets the identifier of this Value; gets the Value's key.
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "child value".parse().unwrap();
+	/// let section = conf.child("child").unwrap();
+	///
+	/// assert_eq!(section.key(), Some("child"));
+	/// ```
+	pub fn key(&self) -> &str {
+		&self.key
+	}
+
+	/// Gets, and clones, the identifier of this Value; gets the Value's key as an owned String.
+	///
+	/// # Example
+	///
+	/// ```rust
+	/// use confindent::Confindent;
+	///
+	/// let conf: Confindent = "child value".parse().unwrap();
+	/// let section = conf.child("child").unwrap();
+	///
+	/// assert_eq!(section.key_owned(), Some(String::from("child")));
+	/// ```
+	pub fn key_owned(&self) -> String {
+		self.key.clone()
+	}
+
 	/// Gets the parsed value of a child that matches the key.
 	///
 	/// Shorthand for [child](Value::child) and then [parse](Value::parse).
