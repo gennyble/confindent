@@ -318,7 +318,7 @@ impl Value {
 	/// let conf: Confindent = "child value".parse().unwrap();
 	/// let section = conf.child("child").unwrap();
 	///
-	/// assert_eq!(section.key(), Some("child"));
+	/// assert_eq!(section.key(), "child");
 	/// ```
 	pub fn key(&self) -> &str {
 		&self.key
@@ -334,7 +334,7 @@ impl Value {
 	/// let conf: Confindent = "child value".parse().unwrap();
 	/// let section = conf.child("child").unwrap();
 	///
-	/// assert_eq!(section.key_owned(), Some(String::from("child")));
+	/// assert_eq!(section.key_owned(), String::from("child"));
 	/// ```
 	pub fn key_owned(&self) -> String {
 		self.key.clone()
